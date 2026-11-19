@@ -20,9 +20,10 @@ void main() {
   for (final block in files) {
     if (block.isEmpty) continue;
     final lines = block.split('\n');
-    final path = lines.first;
+    final rawPath = lines.first.trim();
+    final normalizedPath = rawPath.replaceAll('\\', '/');
 
-    if (!path.contains('lib/core/questions/')) continue;
+    if (!normalizedPath.contains('lib/core/questions/')) continue;
 
     var hit = 0;
     var total = 0;
@@ -31,7 +32,7 @@ void main() {
         final parts = line.split(',');
         if (parts.length >= 2) {
           total++;
-          if ((int.tryParse(parts[1]) ?? 0) > 0) hit++;
+          if ((int.tryParse(parts[1].trim()) ?? 0) > 0) hit++;
         }
       }
     }

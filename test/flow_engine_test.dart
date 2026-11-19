@@ -3,12 +3,69 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flowforge/core/catalog/node_catalog.dart';
 import 'package:flowforge/core/catalog/node_category.dart';
 import 'package:flowforge/core/models/id_generator.dart';
+import 'package:flowforge/core/models/workflow_node.dart';
 import 'package:flowforge/core/questions/flow_engine.dart';
 import 'package:flowforge/core/questions/flow_state.dart';
 import 'package:flowforge/core/questions/question.dart';
 import 'fixtures/answer_key_helper.dart';
 import 'fixtures/scenarios.dart';
 
+const any = WorkflowNode(
+  id: 'dummy',
+  templateKey: 'webhook',
+  name: 'dummy',
+  parameters: {},
+  position: Offset.zero,
+);
+
+FlowState _go(FlowEngine e, FlowState s, List<String> labels) {
+  for (final l in labels) {
+    s = e.answer(s, answerKey(e.availableOptions(s), l));
+  }
+  return s;
+}
+
+bool _hasIf(FlowEngine e, FlowState s) =>
+    e.availableOptions(s).any((o) => o.labelKey == 'cond.if');
+
+void _runScenarioAndVerify(FlowEngine engine, Scenario scenario) {
+  var state = engine.start();
+
+  for (final label in scenario.answers) {
+    final options = engine.availableOptions(state);
+    final idx = answerKey(options, label);
+    state = engine.answer(state, idx);
+  }
+
+  expect(state.currentQuestionId, isNull);
+  expect(state.activeBranch, isNull);
+  expect(state.branchStack, isEmpty);
+
+  final actualKeys =
+      state.model.nodes.map((n) => n.templateKey).toList();
+  expect(actualKeys, scenario.expectedNodeKeys);
+
+  final actualEdges = state.model.edges.map((e) {
+    final fromIdx = state.model.nodes.indexWhere((n) => n.id == e.fromId);
+    final toIdx = state.model.nodes.indexWhere((n) => n.id == e.toId);
+    return (fromIdx, toIdx, e.outputIndex);
+  }).toList();
+  expect(actualEdges, scenario.expectedEdges);
+}
+
+void main() {
+  group('FlowEngine', () {
+    test('start() ilk soruyu q_trigger döndürür ve model boştur', () {
+      final gen = SequentialIdGenerator();
+      final engine = FlowEngine(gen: gen);
+      final state = engine.start();
+
+      expect(state.currentQuestionId, 'q_trigger');
+      expect(state.model.nodes, isEmpty);
+      expect(state.model.edges, isEmpty);
+      expect(state.activeBranch, isNull);
+      expect(state.branchStack, isEmpty);
+    });
 
     test('answer geçersiz indexte StateError fırlatır', () {
       final gen = SequentialIdGenerator();
@@ -117,68 +174,6 @@ import 'fixtures/scenarios.dart';
       expect(undone.branchStack.first.outputIndex, 1);
     });
 
-FlowState _go(FlowEngine e, FlowState s, List<String> labels) {
-  for (final l in labels) {
-    s = e.answer(s, answerKey(e.availableOptions(s), l));
-  }
-  return s;
-}
-
-bool _hasIf(FlowEngine e, FlowState s) =>
-    e.availableOptions(s).any((o) => o.labelKey == 'cond.if');
-
-class SequentialIdGenerator implements IdGenerator {
-  int _counter = 0;
-  @override
-  String next() {
-    _counter++;
-    return 'id-$_counter';
-  }
-}
-
-void _runScenarioAndVerify(FlowEngine engine, Scenario scenario) {
-  var state = engine.start();
-
-  for (final label in scenario.answers) {
-    final options = engine.availableOptions(state);
-    final idx = answerKey(options, label);
-    state = engine.answer(state, idx);
-  }
-
-  expect(state.currentQuestionId, isNull);
-  expect(state.activeBranch, isNull);
-  expect(state.branchStack, isEmpty);
-
-  final actualKeys =
-      state.model.nodes.map((n) => n.templateKey).toList();
-  expect(actualKeys, scenario.expectedNodeKeys);
-
-  final actualEdges = state.model.edges.map((e) {
-    final fromIdx = state.model.nodes.indexWhere((n) => n.id == e.fromId);
-    final toIdx = state.model.nodes.indexWhere((n) => n.id == e.toId);
-    return (fromIdx, toIdx, e.outputIndex);
-  }).toList();
-  expect(actualEdges, scenario.expectedEdges);
-}
-
-void main() {
-  group('FlowEngine', () {
-    test('start() ilk soruyu q_trigger döndürür ve model boştur', () {
-      final gen = SequentialIdGenerator();
-      final engine = FlowEngine(gen: gen);
-      final state = engine.start();
-
-      expect(state.currentQuestionId, 'q_trigger');
-      expect(state.model.nodes, isEmpty);
-      expect(state.model.edges, isEmpty);
-      expect(state.activeBranch, isNull);
-      expect(state.branchStack, isEmpty);
-    });
-
-    // NOT: FlowState.toJson undoStack'i içermemelidir.
-    // undo() dönen state'in undoStack'i, kalan kayıtlarla yeniden kurulur
-    // (geçmişin kopyası olarak değil, mevcut undoStack'in sonundan devam eder).
-
     test('İç içe IF: 3 seviye sonra cond.if gizli', () {
       final e = FlowEngine(gen: SequentialIdGenerator());
       var s = _go(e, e.start(),
@@ -249,7 +244,6 @@ void main() {
       expect(s.activeBranch, isNull);
       expect(s.branchStack, isEmpty);
     });
-
 
     test('undo: silinen node params temizlenir, kalan node düzenlemesi korunur', () {
       final e = FlowEngine(gen: SequentialIdGenerator());
