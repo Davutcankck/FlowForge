@@ -39,6 +39,18 @@ class FlowController extends Notifier<FlowState> {
     state = _engine.start();
   }
 
+  /// Cihazda kayıtlı bir workflow'u aynı ID ile düzenlenmek üzere yükler (FR-09).
+  void loadSavedWorkflow(WorkflowModel saved) {
+    state = FlowState(
+      model: saved,
+      currentQuestionId: null,
+      activeBranch: null,
+      branchStack: const [],
+      userParams: const {},
+      undoStack: const [],
+    );
+  }
+
   /// Aktif soruda verilen seçeneği uygular (FR-03).
   void answer(int optionIndex) {
     state = _engine.answer(state, optionIndex);
