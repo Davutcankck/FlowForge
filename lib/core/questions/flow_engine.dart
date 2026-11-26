@@ -35,10 +35,16 @@ class FlowEngine {
     if (question == null) return const [];
 
     final ifDepth = _calculateIfDepth(state);
-    if (ifDepth >= 3) {
-      return question.options.where((o) => o.labelKey != 'cond.if').toList();
-    }
-    return question.options;
+    final hasWebhookTrigger =
+        state.model.nodes.any((n) => n.templateKey == 'webhook');
+
+    return question.options.where((o) {
+      if (ifDepth >= 3 && o.labelKey == 'cond.if') return false;
+      if (!hasWebhookTrigger && o.addsNodeKey == 'respondToWebhook') {
+        return false;
+      }
+      return true;
+    }).toList();
   }
 
   /// Aktif daldan köke doğru yürüyerek atalardaki IF sayısını hesaplar.

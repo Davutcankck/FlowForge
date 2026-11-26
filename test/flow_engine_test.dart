@@ -291,5 +291,33 @@ void main() {
       s = e.answer(s, answerKey(options, 'action.none'));
       expect(s.currentQuestionId, 'q_condition');
     });
+
+    test('action.set ve out.respondToWebhook webhook akışında eklenebilir', () {
+      final e = FlowEngine(gen: SequentialIdGenerator());
+      final s = _go(e, e.start(), [
+        'trigger.webhook',
+        'action.set',
+        'cond.none',
+        'out.respondToWebhook',
+        'branch.end',
+      ]);
+      expect(s.currentQuestionId, isNull);
+      expect(
+        s.model.nodes.map((n) => n.templateKey).toList(),
+        ['webhook', 'set', 'respondToWebhook'],
+      );
+    });
+
+    test('out.respondToWebhook webhook dışındaki tetikleyicilerde gizlenir', () {
+      final e = FlowEngine(gen: SequentialIdGenerator());
+      final s = _go(e, e.start(), [
+        'trigger.schedule',
+        'action.none',
+        'cond.none',
+      ]);
+      expect(s.currentQuestionId, 'q_output');
+      final keys = e.availableOptions(s).map((o) => o.labelKey).toSet();
+      expect(keys.contains('out.respondToWebhook'), isFalse);
+    });
   });
 }

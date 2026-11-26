@@ -10,6 +10,7 @@ class NodeTemplate {
   final String n8nType;
   final num typeVersion; // TODO(verify-n8n)
   final Map<String, dynamic> defaultParameters;
+  final List<String> requiredParameters;
   final int outputs;
   final String drawioStyle;
 
@@ -20,6 +21,7 @@ class NodeTemplate {
     required this.n8nType,
     required this.typeVersion,
     required this.defaultParameters,
+    this.requiredParameters = const [],
     required this.outputs,
     required this.drawioStyle,
   });

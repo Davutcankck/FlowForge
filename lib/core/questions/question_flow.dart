@@ -56,6 +56,12 @@ abstract final class QuestionFlow {
           nextQuestionId: 'q_condition',
         ),
         Option(
+          labelKey: 'action.set',
+          action: OptionAction.addNode,
+          addsNodeKey: 'set',
+          nextQuestionId: 'q_condition',
+        ),
+        Option(
           labelKey: 'action.none',
           action: OptionAction.skipToCondition,
           nextQuestionId: 'q_condition',
@@ -101,6 +107,12 @@ abstract final class QuestionFlow {
           addsNodeKey: 'gmail',
           nextQuestionId: 'q_branch_continue',
         ),
+        Option(
+          labelKey: 'out.respondToWebhook',
+          action: OptionAction.addNode,
+          addsNodeKey: 'respondToWebhook',
+          nextQuestionId: 'q_branch_continue',
+        ),
       ],
     ),
     Question(
@@ -123,6 +135,12 @@ abstract final class QuestionFlow {
           labelKey: 'out.gmail',
           action: OptionAction.addNode,
           addsNodeKey: 'gmail',
+          nextQuestionId: 'q_branch_continue',
+        ),
+        Option(
+          labelKey: 'out.respondToWebhook',
+          action: OptionAction.addNode,
+          addsNodeKey: 'respondToWebhook',
           nextQuestionId: 'q_branch_continue',
         ),
         Option(
@@ -152,6 +170,12 @@ abstract final class QuestionFlow {
           labelKey: 'out.gmail',
           action: OptionAction.addNode,
           addsNodeKey: 'gmail',
+          nextQuestionId: 'q_branch_continue',
+        ),
+        Option(
+          labelKey: 'out.respondToWebhook',
+          action: OptionAction.addNode,
+          addsNodeKey: 'respondToWebhook',
           nextQuestionId: 'q_branch_continue',
         ),
         Option(
@@ -192,6 +216,12 @@ abstract final class QuestionFlow {
           labelKey: 'action.telegram',
           action: OptionAction.addNode,
           addsNodeKey: 'telegram',
+          nextQuestionId: 'q_branch_continue',
+        ),
+        Option(
+          labelKey: 'action.set',
+          action: OptionAction.addNode,
+          addsNodeKey: 'set',
           nextQuestionId: 'q_branch_continue',
         ),
         Option(

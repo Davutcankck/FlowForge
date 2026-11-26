@@ -68,6 +68,10 @@ abstract final class AppStrings {
       AppLang.tr: 'Telegram Mesajı Gönder',
       AppLang.en: 'Send Telegram Message',
     },
+    'action.set': {
+      AppLang.tr: 'Veri Alanlarını Düzenle (Set)',
+      AppLang.en: 'Edit Fields (Set)',
+    },
     'action.none': {
       AppLang.tr: 'İşlem yapmadan geç',
       AppLang.en: 'Skip action',
@@ -95,6 +99,10 @@ abstract final class AppStrings {
     'out.gmail': {
       AppLang.tr: 'E-posta ile Bildir',
       AppLang.en: 'Notify via Email',
+    },
+    'out.respondToWebhook': {
+      AppLang.tr: 'Webhook\'a Yanıt Dön',
+      AppLang.en: 'Respond to Webhook',
     },
 
     // Dal Seçenekleri

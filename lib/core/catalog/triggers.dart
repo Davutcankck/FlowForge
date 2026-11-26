@@ -12,6 +12,7 @@ const List<NodeTemplate> triggerTemplates = [
     n8nType: 'n8n-nodes-base.webhook',
     typeVersion: 1, // TODO(verify-n8n)
     defaultParameters: {'path': 'my-hook', 'httpMethod': 'POST'},
+    requiredParameters: ['path'],
     outputs: 1,
     drawioStyle: _triggerStyle,
   ),

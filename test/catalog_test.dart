@@ -49,5 +49,15 @@ void main() {
       // ancak byCategory metodu mevcut olmalı.
       expect(NodeCatalog.byCategory(NodeCategory.trigger).length, 3);
     });
+
+    test('httpRequest n8nType doğru ve tüm şablonlar n8n-nodes-base ile başlar',
+        () {
+      final http = NodeCatalog.byKey('httpRequest');
+      expect(http, isNotNull);
+      expect(http!.n8nType, 'n8n-nodes-base.httpRequest');
+      for (final t in NodeCatalog.all) {
+        expect(t.n8nType, startsWith('n8n-nodes-base.'));
+      }
+    });
   });
 }

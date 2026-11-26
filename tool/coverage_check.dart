@@ -1,29 +1,46 @@
 import 'dart:io';
 
-/// Faz 2 kabul kriteri: lib/core/questions kapsamı %80 üzerinde olmalı.
-/// `flutter test --coverage` sonrası üretilen coverage/lcov.info dosyasını
-/// okur ve core/questions altındaki dosyaların satır kapsamını hesaplar.
+/// NFR-06 kabul kriteri: motor (questions), layout ve exporter kodunda
+/// en az %80 birim test kapsamı olmalı.
+///
+/// `flutter test --coverage` sonrası üretilen `coverage/lcov.info` dosyasını
+/// okur ve her hedef katman ile toplam satır kapsamını doğrular.
 void main() {
   final lcov = File('coverage/lcov.info');
   if (!lcov.existsSync()) {
-    stderr.writeln('HATA: coverage/lcov.info bulunamadı. '
-        'Önce `flutter test --coverage` çalıştırın.');
+    stderr.writeln(
+      'HATA: coverage/lcov.info bulunamadı. '
+      'Önce `flutter test --coverage` çalıştırın.',
+    );
     exitCode = 1;
     return;
   }
 
+  const targetDirs = <String>[
+    'lib/core/questions/',
+    'lib/core/layout/',
+    'lib/core/export/',
+  ];
+
+  final linesByDir = <String, int>{for (final d in targetDirs) d: 0};
+  final hitsByDir = <String, int>{for (final d in targetDirs) d: 0};
+
   final content = lcov.readAsStringSync();
   final files = content.split('SF:');
-  var questionsLines = 0;
-  var questionsHit = 0;
 
   for (final block in files) {
     if (block.isEmpty) continue;
     final lines = block.split('\n');
-    final rawPath = lines.first.trim();
-    final normalizedPath = rawPath.replaceAll('\\', '/');
+    final normalizedPath = lines.first.trim().replaceAll('\\', '/');
 
-    if (!normalizedPath.contains('lib/core/questions/')) continue;
+    String? matchedDir;
+    for (final dir in targetDirs) {
+      if (normalizedPath.contains(dir)) {
+        matchedDir = dir;
+        break;
+      }
+    }
+    if (matchedDir == null) continue;
 
     var hit = 0;
     var total = 0;
@@ -37,24 +54,45 @@ void main() {
       }
     }
 
-    questionsLines += total;
-    questionsHit += hit;
+    linesByDir[matchedDir] = (linesByDir[matchedDir] ?? 0) + total;
+    hitsByDir[matchedDir] = (hitsByDir[matchedDir] ?? 0) + hit;
   }
 
-  if (questionsLines == 0) {
-    stderr.writeln('HATA: lib/core/questions/ altında dosya bulunamadı.');
-    exitCode = 1;
-    return;
+  var grandTotal = 0;
+  var grandHit = 0;
+  var hasFailure = false;
+
+  for (final dir in targetDirs) {
+    final total = linesByDir[dir] ?? 0;
+    final hit = hitsByDir[dir] ?? 0;
+    grandTotal += total;
+    grandHit += hit;
+
+    if (total == 0) {
+      stderr.writeln('HATA: $dir altında kapsam verisi bulunamadı.');
+      hasFailure = true;
+      continue;
+    }
+
+    final pct = hit / total * 100;
+    stdout.writeln('$dir kapsamı: $hit / $total = ${pct.toStringAsFixed(1)}%');
+    if (pct < 80) {
+      stderr.writeln('HATA: $dir kapsamı %80 altındadır.');
+      hasFailure = true;
+    }
   }
 
-  final pct = (questionsHit / questionsLines * 100);
-  stdout.writeln(
-      'core/questions kapsamı: $questionsHit / $questionsLines = ${pct.toStringAsFixed(1)}%');
+  if (grandTotal > 0) {
+    final totalPct = grandHit / grandTotal * 100;
+    stdout.writeln(
+      'Toplam (questions + layout + export): '
+      '$grandHit / $grandTotal = ${totalPct.toStringAsFixed(1)}%',
+    );
+  }
 
-  if (pct < 80) {
-    stderr.writeln('HATA: Kapsam %80 altındır.');
+  if (hasFailure) {
     exitCode = 1;
   } else {
-    stdout.writeln('OK: Kapsam %80 veya üzeri.');
+    stdout.writeln('OK: Tüm hedef katmanlar %80 veya üzeri kapsamda.');
   }
 }

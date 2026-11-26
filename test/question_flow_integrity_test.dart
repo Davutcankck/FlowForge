@@ -52,6 +52,7 @@ void main() {
         expect(keys.contains('out.googleSheets'), isTrue);
         expect(keys.contains('out.telegram'), isTrue);
         expect(keys.contains('out.gmail'), isTrue);
+        expect(keys.contains('out.respondToWebhook'), isTrue);
         expect(keys.contains('branch.empty'), isTrue);
       }
     });
@@ -84,6 +85,20 @@ void main() {
                 reason: '${q.id}/${o.labelKey}: nextQuestionId null sadece endBranch için');
           }
         }
+      }
+    });
+
+    test('katalogdaki tüm 10 node soru ağacında en az bir seçenekle erişilebilir',
+        () {
+      final reachableNodeKeys = <String>{
+        for (final q in QuestionFlow.all)
+          for (final o in q.options)
+            if (o.addsNodeKey != null) o.addsNodeKey!,
+      };
+
+      for (final t in NodeCatalog.all) {
+        expect(reachableNodeKeys.contains(t.key), isTrue,
+            reason: 'Katalogdaki "${t.key}" node\'u soru ağacında erişilemiyor');
       }
     });
   });
