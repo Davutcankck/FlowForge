@@ -1,10 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
-import 'features/wizard/home_entry_screen.dart';
+import 'features/saved/saved_workflows_controller.dart';
+import 'features/saved/saved_workflows_screen.dart';
+import 'services/storage_service.dart';
 
-void main() {
-  runApp(const ProviderScope(child: FlowForgeApp()));
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  WorkflowStorage storageService;
+  try {
+    await Hive.initFlutter();
+    final workflowsBox = await Hive.openBox<String>(StorageService.boxName);
+    storageService = StorageService(workflowsBox);
+  } catch (e, stack) {
+    debugPrint('Hive başlatılamadı, bellek içi depolamaya geçiliyor: $e\n$stack');
+    storageService = InMemoryStorageService();
+  }
+
+  runApp(
+    ProviderScope(
+      overrides: [
+        storageServiceProvider.overrideWithValue(storageService),
+      ],
+      child: const FlowForgeApp(),
+    ),
+  );
 }
 
 /// FlowForge kök uygulama widget'ı.
@@ -31,7 +53,7 @@ class FlowForgeApp extends StatelessWidget {
         ),
       ),
       themeMode: ThemeMode.system,
-      home: const HomeEntryScreen(),
+      home: const SavedWorkflowsScreen(),
     );
   }
 }
