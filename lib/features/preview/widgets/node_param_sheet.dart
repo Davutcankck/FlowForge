@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/catalog/node_catalog.dart';
+import '../../../core/l10n/app_strings.dart';
 import '../../../core/models/workflow_node.dart';
 
 /// Bir düğüme dokunulduğunda parametrelerini düzenlemeyi sağlayan bottom sheet (FR-11, SDD 6.1).
-///
-/// - `NodeTemplate.requiredParameters` alanları her zaman render edilir ve işaretlenir.
-/// - `IF`, `Google Sheets`, `Telegram` gibi başlangıçta boş parametreli düğümlerde
-///   net bilgilendirme ve isteğe bağlı özel parametre (anahtar/değer) ekleme sunulur.
 class NodeParamSheet extends StatefulWidget {
   const NodeParamSheet({
     super.key,
     required this.node,
+    required this.lang,
     required this.onSave,
   });
 
   final WorkflowNode node;
+  final AppLang lang;
   final ValueChanged<Map<String, dynamic>> onSave;
 
   @override
@@ -86,6 +85,7 @@ class _NodeParamSheetState extends State<NodeParamSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = widget.lang;
     final colorScheme = Theme.of(context).colorScheme;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
@@ -120,7 +120,7 @@ class _NodeParamSheetState extends State<NodeParamSheet> {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Kapat',
+                  tooltip: AppStrings.lookup('common.close', lang),
                   icon: const Icon(Icons.close_rounded),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
@@ -144,7 +144,7 @@ class _NodeParamSheetState extends State<NodeParamSheet> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Bu düğüm için önceden tanımlı parametre yok. İsterseniz aşağıdan özel anahtar/değer parametresi ekleyebilirsiniz.',
+                        AppStrings.lookup('params.emptyInfo', lang),
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ),
@@ -161,7 +161,7 @@ class _NodeParamSheetState extends State<NodeParamSheet> {
                         ? '${entry.key} *'
                         : entry.key,
                     helperText: _requiredKeys.contains(entry.key)
-                        ? 'Zorunlu parametre'
+                        ? AppStrings.lookup('params.requiredHelper', lang)
                         : null,
                     border: const OutlineInputBorder(),
                   ),
@@ -170,7 +170,7 @@ class _NodeParamSheetState extends State<NodeParamSheet> {
               ],
             const SizedBox(height: 8),
             Text(
-              'Özel Parametre Ekle',
+              AppStrings.lookup('params.addCustomTitle', lang),
               style: Theme.of(context)
                   .textTheme
                   .labelLarge
@@ -183,10 +183,10 @@ class _NodeParamSheetState extends State<NodeParamSheet> {
                   child: TextField(
                     key: const Key('custom_param_key_field'),
                     controller: _newKeyController,
-                    decoration: const InputDecoration(
-                      labelText: 'Anahtar',
+                    decoration: InputDecoration(
+                      labelText: AppStrings.lookup('params.keyLabel', lang),
                       isDense: true,
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
                     ),
                   ),
                 ),
@@ -195,17 +195,17 @@ class _NodeParamSheetState extends State<NodeParamSheet> {
                   child: TextField(
                     key: const Key('custom_param_value_field'),
                     controller: _newValueController,
-                    decoration: const InputDecoration(
-                      labelText: 'Değer',
+                    decoration: InputDecoration(
+                      labelText: AppStrings.lookup('params.valueLabel', lang),
                       isDense: true,
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 IconButton.filledTonal(
                   key: const Key('add_custom_param_button'),
-                  tooltip: 'Parametre ekle',
+                  tooltip: AppStrings.lookup('params.addTooltip', lang),
                   icon: const Icon(Icons.add_rounded),
                   onPressed: _addCustomParameter,
                 ),
@@ -218,7 +218,7 @@ class _NodeParamSheetState extends State<NodeParamSheet> {
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(48),
               ),
-              child: const Text('Değişiklikleri Kaydet'),
+              child: Text(AppStrings.lookup('params.saveButton', lang)),
             ),
           ],
         ),

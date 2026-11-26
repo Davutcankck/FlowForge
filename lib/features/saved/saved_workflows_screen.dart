@@ -1,8 +1,11 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/models/workflow_model.dart';
 import '../preview/preview_screen.dart';
+import '../settings/settings_controller.dart';
+import '../settings/settings_screen.dart';
 import '../wizard/flow_controller.dart';
 import '../wizard/wizard_screen.dart';
 import 'saved_workflows_controller.dart';
@@ -22,10 +25,14 @@ class SavedWorkflowsScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     WorkflowModel workflow,
+    AppLang lang,
   ) async {
     final updated = await showDialog<String>(
       context: context,
-      builder: (_) => _RenameSavedWorkflowDialog(initialName: workflow.name),
+      builder: (_) => _RenameSavedWorkflowDialog(
+        initialName: workflow.name,
+        lang: lang,
+      ),
     );
     if (updated != null && updated.isNotEmpty) {
       await ref
@@ -38,19 +45,20 @@ class SavedWorkflowsScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     WorkflowModel workflow,
+    AppLang lang,
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Workflow Silinsin mi?'),
+          title: Text(AppStrings.lookup('saved.deleteTitle', lang)),
           content: Text(
-            '"${workflow.name}" akışı cihazdan kalıcı olarak silinecek.',
+            AppStrings.format('saved.deleteBody', lang, {'name': workflow.name}),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('İptal'),
+              child: Text(AppStrings.lookup('common.cancel', lang)),
             ),
             FilledButton(
               key: const Key('confirm_delete_workflow_button'),
@@ -59,7 +67,7 @@ class SavedWorkflowsScreen extends ConsumerWidget {
                 foregroundColor: Theme.of(context).colorScheme.onError,
               ),
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Sil'),
+              child: Text(AppStrings.lookup('common.delete', lang)),
             ),
           ],
         );
@@ -75,19 +83,24 @@ class SavedWorkflowsScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     List<String> corruptedIds,
+    AppLang lang,
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Bozuk Kayıtlar Silinsin mi?'),
+          title: Text(AppStrings.lookup('saved.deleteCorruptedTitle', lang)),
           content: Text(
-            '${corruptedIds.length} okunamayan veya desteklenmeyen sürümdeki kayıt kalıcı olarak silinecek.',
+            AppStrings.format(
+              'saved.deleteCorruptedBody',
+              lang,
+              {'count': corruptedIds.length},
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('İptal'),
+              child: Text(AppStrings.lookup('common.cancel', lang)),
             ),
             FilledButton(
               key: const Key('confirm_delete_corrupted_button'),
@@ -96,7 +109,7 @@ class SavedWorkflowsScreen extends ConsumerWidget {
                 foregroundColor: Theme.of(context).colorScheme.onError,
               ),
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Sil'),
+              child: Text(AppStrings.lookup('common.delete', lang)),
             ),
           ],
         );
@@ -127,17 +140,64 @@ class SavedWorkflowsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final loadResult = ref.watch(savedWorkflowsProvider);
+    final storageInitFailed = ref.watch(storageInitFailedProvider);
+    final lang = ref.watch(appLangProvider);
     final workflows = loadResult.workflows;
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('FlowForge'),
+        title: Text(AppStrings.lookup('app_name', lang)),
+        actions: [
+          IconButton(
+            key: const Key('open_settings_button'),
+            tooltip: AppStrings.lookup('settings.title', lang),
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (storageInitFailed)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Container(
+                  key: const Key('storage_init_failed_banner'),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFEBEE),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFFB71C1C).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.storage_outlined,
+                        color: Color(0xFFB71C1C),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          AppStrings.lookup('storage.initFailedBanner', lang),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: const Color(0xFFB71C1C)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             if (loadResult.hasCorrupted)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -160,7 +220,11 @@ class SavedWorkflowsScreen extends ConsumerWidget {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          '${loadResult.corruptedIds.length} bozuk kayıt okunamadığı için atlandı.',
+                          AppStrings.format(
+                            'saved.corruptedBanner',
+                            lang,
+                            {'count': loadResult.corruptedIds.length},
+                          ),
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall
@@ -173,8 +237,11 @@ class SavedWorkflowsScreen extends ConsumerWidget {
                           context,
                           ref,
                           loadResult.corruptedIds,
+                          lang,
                         ),
-                        child: const Text('Temizle'),
+                        child: Text(
+                          AppStrings.lookup('saved.cleanCorrupted', lang),
+                        ),
                       ),
                     ],
                   ),
@@ -194,7 +261,7 @@ class SavedWorkflowsScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'Henüz kayıtlı akış yok',
+                            AppStrings.lookup('saved.emptyTitle', lang),
                             key: const Key('saved_empty_state_title'),
                             style: Theme.of(context)
                                 .textTheme
@@ -203,7 +270,7 @@ class SavedWorkflowsScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Birkaç kısa soruyu cevaplayarak çevrimdışı olarak n8n JSON ve draw.io diyagramı oluşturabilirsiniz.',
+                            AppStrings.lookup('saved.emptySubtitle', lang),
                             textAlign: TextAlign.center,
                             style: Theme.of(context)
                                 .textTheme
@@ -219,6 +286,11 @@ class SavedWorkflowsScreen extends ConsumerWidget {
                       separatorBuilder: (_, _) => const SizedBox(height: 10),
                       itemBuilder: (context, index) {
                         final workflow = workflows[index];
+                        final nodeCountText = AppStrings.format(
+                          'saved.nodeCount',
+                          lang,
+                          {'count': workflow.nodes.length},
+                        );
                         return Card(
                           key: Key('saved_workflow_card_${workflow.id}'),
                           elevation: 0,
@@ -244,26 +316,33 @@ class SavedWorkflowsScreen extends ConsumerWidget {
                               ),
                             ),
                             subtitle: Text(
-                              '${workflow.nodes.length} düğüm · ${_formatDateTime(workflow.updatedAt)}',
+                              '$nodeCountText · ${_formatDateTime(workflow.updatedAt)}',
                             ),
                             onTap: () => _openSaved(context, ref, workflow),
                             trailing: PopupMenuButton<String>(
                               key: Key('saved_workflow_menu_${workflow.id}'),
                               onSelected: (action) {
                                 if (action == 'rename') {
-                                  _showRenameDialog(context, ref, workflow);
+                                  _showRenameDialog(
+                                    context,
+                                    ref,
+                                    workflow,
+                                    lang,
+                                  );
                                 } else if (action == 'delete') {
-                                  _confirmDelete(context, ref, workflow);
+                                  _confirmDelete(context, ref, workflow, lang);
                                 }
                               },
-                              itemBuilder: (_) => const [
+                              itemBuilder: (_) => [
                                 PopupMenuItem(
                                   value: 'rename',
                                   child: ListTile(
                                     dense: true,
                                     contentPadding: EdgeInsets.zero,
-                                    leading: Icon(Icons.edit_outlined),
-                                    title: Text('Yeniden Adlandır'),
+                                    leading: const Icon(Icons.edit_outlined),
+                                    title: Text(
+                                      AppStrings.lookup('saved.rename', lang),
+                                    ),
                                   ),
                                 ),
                                 PopupMenuItem(
@@ -271,8 +350,12 @@ class SavedWorkflowsScreen extends ConsumerWidget {
                                   child: ListTile(
                                     dense: true,
                                     contentPadding: EdgeInsets.zero,
-                                    leading: Icon(Icons.delete_outline_rounded),
-                                    title: Text('Sil'),
+                                    leading: const Icon(
+                                      Icons.delete_outline_rounded,
+                                    ),
+                                    title: Text(
+                                      AppStrings.lookup('common.delete', lang),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -287,7 +370,7 @@ class SavedWorkflowsScreen extends ConsumerWidget {
               child: FilledButton.icon(
                 key: const Key('start_new_workflow_button'),
                 icon: const Icon(Icons.add_rounded),
-                label: const Text('Yeni Workflow Başlat'),
+                label: Text(AppStrings.lookup('saved.startNew', lang)),
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(56),
                 ),
@@ -302,9 +385,13 @@ class SavedWorkflowsScreen extends ConsumerWidget {
 }
 
 class _RenameSavedWorkflowDialog extends StatefulWidget {
-  const _RenameSavedWorkflowDialog({required this.initialName});
+  const _RenameSavedWorkflowDialog({
+    required this.initialName,
+    required this.lang,
+  });
 
   final String initialName;
+  final AppLang lang;
 
   @override
   State<_RenameSavedWorkflowDialog> createState() =>
@@ -329,26 +416,27 @@ class _RenameSavedWorkflowDialogState
 
   @override
   Widget build(BuildContext context) {
+    final lang = widget.lang;
     return AlertDialog(
-      title: const Text('Workflow Adını Düzenle'),
+      title: Text(AppStrings.lookup('workflow.renameTitle', lang)),
       content: TextField(
         key: const Key('saved_rename_field'),
         controller: _controller,
         autofocus: true,
-        decoration: const InputDecoration(
-          labelText: 'Workflow adı',
-          border: OutlineInputBorder(),
+        decoration: InputDecoration(
+          labelText: AppStrings.lookup('workflow.nameLabel', lang),
+          border: const OutlineInputBorder(),
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('İptal'),
+          child: Text(AppStrings.lookup('common.cancel', lang)),
         ),
         FilledButton(
           key: const Key('confirm_saved_rename_button'),
           onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
-          child: const Text('Kaydet'),
+          child: Text(AppStrings.lookup('common.save', lang)),
         ),
       ],
     );

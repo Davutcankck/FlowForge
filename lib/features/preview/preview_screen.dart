@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/layout/hit_tester.dart';
 import '../../core/models/workflow_node.dart';
 import '../export/export_summary_screen.dart';
@@ -59,10 +60,13 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
     _transformationController.value = matrix;
   }
 
-  Future<void> _showRenameDialog(String currentName) async {
+  Future<void> _showRenameDialog(String currentName, AppLang lang) async {
     final updated = await showDialog<String>(
       context: context,
-      builder: (_) => _RenameWorkflowDialog(initialName: currentName),
+      builder: (_) => _RenameWorkflowDialog(
+        initialName: currentName,
+        lang: lang,
+      ),
     );
 
     if (updated != null && updated.isNotEmpty) {
@@ -70,7 +74,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
     }
   }
 
-  void _openNodeParamSheet(WorkflowNode node) {
+  void _openNodeParamSheet(WorkflowNode node, AppLang lang) {
     ref.read(previewHintDismissedProvider.notifier).state = true;
     showModalBottomSheet<void>(
       context: context,
@@ -78,6 +82,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
       useSafeArea: true,
       builder: (_) => NodeParamSheet(
         node: node,
+        lang: lang,
         onSave: (params) {
           ref
               .read(flowControllerProvider.notifier)
@@ -93,6 +98,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
     final layout = ref.watch(layoutResultProvider);
     final issues = ref.watch(validationIssuesProvider);
     final hintDismissed = ref.watch(previewHintDismissedProvider);
+    final lang = ref.watch(appLangProvider);
     final warningNodeIds = issues
         .where((i) => i.code == 'V-04' && i.nodeId != null)
         .map((i) => i.nodeId!)
@@ -111,7 +117,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
           if (model.nodes.isNotEmpty)
             IconButton(
               key: const Key('preview_fit_screen_button'),
-              tooltip: 'Ekrana sığdır',
+              tooltip: AppStrings.lookup('preview.fitScreen', lang),
               icon: const Icon(Icons.fit_screen_outlined),
               onPressed: () {
                 if (_lastViewportSize != null) {
@@ -121,16 +127,16 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
             ),
           IconButton(
             key: const Key('preview_rename_button'),
-            tooltip: 'Workflow adını düzenle',
+            tooltip: AppStrings.lookup('preview.renameTooltip', lang),
             icon: const Icon(Icons.edit_outlined),
-            onPressed: () => _showRenameDialog(model.name),
+            onPressed: () => _showRenameDialog(model.name, lang),
           ),
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: FilledButton.tonalIcon(
               key: const Key('preview_export_summary_button'),
               icon: const Icon(Icons.verified_outlined, size: 18),
-              label: const Text('Özet'),
+              label: Text(AppStrings.lookup('preview.summary', lang)),
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(
@@ -144,6 +150,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
       ),
       body: model.nodes.isEmpty
           ? _EmptyPreviewState(
+              lang: lang,
               onReturnToWizard: () => Navigator.of(context).maybePop(),
             )
           : Column(
@@ -164,13 +171,16 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Parametre düzenlemek için bir düğüme dokunun. Yakınlaştırmak için sıkıştırın.',
+                              AppStrings.lookup('preview.hint', lang),
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ),
                           IconButton(
                             key: const Key('dismiss_preview_hint_button'),
-                            tooltip: 'İpucunu kapat',
+                            tooltip: AppStrings.lookup(
+                              'preview.dismissHint',
+                              lang,
+                            ),
                             visualDensity: VisualDensity.compact,
                             icon: const Icon(Icons.close_rounded, size: 18),
                             onPressed: () {
@@ -217,7 +227,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                               scale: currentScale,
                             );
                             if (tapped != null) {
-                              _openNodeParamSheet(tapped);
+                              _openNodeParamSheet(tapped, lang);
                             }
                           },
                           child: SizedBox(
@@ -246,9 +256,13 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
 }
 
 class _RenameWorkflowDialog extends StatefulWidget {
-  const _RenameWorkflowDialog({required this.initialName});
+  const _RenameWorkflowDialog({
+    required this.initialName,
+    required this.lang,
+  });
 
   final String initialName;
+  final AppLang lang;
 
   @override
   State<_RenameWorkflowDialog> createState() => _RenameWorkflowDialogState();
@@ -271,26 +285,27 @@ class _RenameWorkflowDialogState extends State<_RenameWorkflowDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = widget.lang;
     return AlertDialog(
-      title: const Text('Workflow Adını Düzenle'),
+      title: Text(AppStrings.lookup('workflow.renameTitle', lang)),
       content: TextField(
         key: const Key('rename_workflow_field'),
         controller: _controller,
         autofocus: true,
-        decoration: const InputDecoration(
-          labelText: 'Workflow adı',
-          border: OutlineInputBorder(),
+        decoration: InputDecoration(
+          labelText: AppStrings.lookup('workflow.nameLabel', lang),
+          border: const OutlineInputBorder(),
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('İptal'),
+          child: Text(AppStrings.lookup('common.cancel', lang)),
         ),
         FilledButton(
           key: const Key('confirm_rename_workflow_button'),
           onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
-          child: const Text('Kaydet'),
+          child: Text(AppStrings.lookup('common.save', lang)),
         ),
       ],
     );
@@ -298,8 +313,12 @@ class _RenameWorkflowDialogState extends State<_RenameWorkflowDialog> {
 }
 
 class _EmptyPreviewState extends StatelessWidget {
-  const _EmptyPreviewState({required this.onReturnToWizard});
+  const _EmptyPreviewState({
+    required this.lang,
+    required this.onReturnToWizard,
+  });
 
+  final AppLang lang;
   final VoidCallback onReturnToWizard;
 
   @override
@@ -318,7 +337,7 @@ class _EmptyPreviewState extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'Henüz düğüm eklenmedi',
+              AppStrings.lookup('preview.emptyTitle', lang),
               key: const Key('preview_empty_state_title'),
               style: Theme.of(context)
                   .textTheme
@@ -327,7 +346,7 @@ class _EmptyPreviewState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'İlk soruyu cevapladığınızda akış diyagramınız burada canlı olarak görünecek.',
+              AppStrings.lookup('preview.emptySubtitle', lang),
               textAlign: TextAlign.center,
               style: Theme.of(context)
                   .textTheme
@@ -338,7 +357,7 @@ class _EmptyPreviewState extends StatelessWidget {
             FilledButton.tonalIcon(
               onPressed: onReturnToWizard,
               icon: const Icon(Icons.arrow_back_rounded),
-              label: const Text('Soru Ekranına Dön'),
+              label: Text(AppStrings.lookup('preview.backToWizard', lang)),
             ),
           ],
         ),

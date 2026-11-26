@@ -45,17 +45,21 @@ class WizardScreen extends ConsumerWidget {
         option.labelKey == 'cond.none';
   }
 
-  String? _activeBranchLabel(FlowState state) {
+  String? _activeBranchLabel(FlowState state, AppLang lang) {
     final qId = state.currentQuestionId;
-    if (qId == 'q_branch_true') return 'Koşul: DOĞRU dalı';
-    if (qId == 'q_branch_false') return 'Koşul: YANLIŞ dalı';
+    if (qId == 'q_branch_true') {
+      return AppStrings.lookup('wizard.branchTrue', lang);
+    }
+    if (qId == 'q_branch_false') {
+      return AppStrings.lookup('wizard.branchFalse', lang);
+    }
     final branch = state.activeBranch;
     if (branch != null) {
       final parent = state.model.nodeById(branch.nodeId);
       if (parent?.templateKey == 'if') {
         return branch.outputIndex == 0
-            ? 'Koşul: DOĞRU dalı'
-            : 'Koşul: YANLIŞ dalı';
+            ? AppStrings.lookup('wizard.branchTrue', lang)
+            : AppStrings.lookup('wizard.branchFalse', lang);
       }
     }
     return null;
@@ -75,13 +79,15 @@ class WizardScreen extends ConsumerWidget {
     final progress = isCompleted
         ? 1.0
         : (_stepProgressByQuestion[questionId] ?? 0.5);
-    final branchLabel = _activeBranchLabel(flowState);
+    final branchLabel = _activeBranchLabel(flowState, lang);
 
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           key: const Key('wizard_undo_button'),
-          tooltip: flowState.undoStack.isNotEmpty ? 'Geri al' : 'Kapat',
+          tooltip: flowState.undoStack.isNotEmpty
+              ? AppStrings.lookup('wizard.undo', lang)
+              : AppStrings.lookup('common.close', lang),
           icon: Icon(
             flowState.undoStack.isNotEmpty
                 ? Icons.undo_rounded
@@ -106,7 +112,13 @@ class WizardScreen extends ConsumerWidget {
               key: const Key('wizard_preview_button'),
               icon: const Icon(Icons.account_tree_outlined, size: 18),
               label: Text(
-                nodeCount > 0 ? 'Önizleme ($nodeCount)' : 'Önizleme',
+                nodeCount > 0
+                    ? AppStrings.format(
+                        'wizard.previewCount',
+                        lang,
+                        {'count': nodeCount},
+                      )
+                    : AppStrings.lookup('wizard.preview', lang),
               ),
               onPressed: () {
                 Navigator.of(context).push(
@@ -130,6 +142,7 @@ class WizardScreen extends ConsumerWidget {
         child: isCompleted
             ? _CompletedView(
                 nodeCount: nodeCount,
+                lang: lang,
                 onOpenPreview: () {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
@@ -169,7 +182,11 @@ class WizardScreen extends ConsumerWidget {
                                   Chip(
                                     visualDensity: VisualDensity.compact,
                                     label: Text(
-                                      'Adım ${flowState.undoStack.length + 1}',
+                                      AppStrings.format(
+                                        'wizard.step',
+                                        lang,
+                                        {'step': flowState.undoStack.length + 1},
+                                      ),
                                     ),
                                   ),
                                   if (branchLabel != null)
@@ -234,11 +251,13 @@ class WizardScreen extends ConsumerWidget {
 class _CompletedView extends StatelessWidget {
   const _CompletedView({
     required this.nodeCount,
+    required this.lang,
     required this.onOpenPreview,
     required this.onOpenExportSummary,
   });
 
   final int nodeCount;
+  final AppLang lang;
   final VoidCallback onOpenPreview;
   final VoidCallback onOpenExportSummary;
 
@@ -258,7 +277,7 @@ class _CompletedView extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'Akış Tasarımı Tamamlandı',
+            AppStrings.lookup('wizard.completedTitle', lang),
             textAlign: TextAlign.center,
             style: Theme.of(context)
                 .textTheme
@@ -267,7 +286,7 @@ class _CompletedView extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '$nodeCount düğümden oluşan akışınız hazır. Önizlemede parametreleri düzenleyebilir veya doğrulama özetini inceleyebilirsiniz.',
+            AppStrings.format('wizard.completedBody', lang, {'count': nodeCount}),
             textAlign: TextAlign.center,
             style: Theme.of(context)
                 .textTheme
@@ -279,7 +298,7 @@ class _CompletedView extends StatelessWidget {
             key: const Key('completed_open_preview_button'),
             onPressed: onOpenPreview,
             icon: const Icon(Icons.account_tree_rounded),
-            label: const Text('Canlı Önizlemeyi Aç'),
+            label: Text(AppStrings.lookup('wizard.openPreview', lang)),
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
             ),
@@ -289,7 +308,7 @@ class _CompletedView extends StatelessWidget {
             key: const Key('completed_open_export_button'),
             onPressed: onOpenExportSummary,
             icon: const Icon(Icons.verified_outlined),
-            label: const Text('Doğrulama ve Dışa Aktarma Özeti'),
+            label: Text(AppStrings.lookup('wizard.openExport', lang)),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
             ),

@@ -8,6 +8,7 @@ import '../../core/models/workflow_model.dart';
 import '../../core/questions/flow_engine.dart';
 import '../../core/questions/flow_state.dart';
 import '../../core/questions/question.dart';
+import '../settings/settings_controller.dart';
 
 /// Üretimde UUID v4, testlerde deterministik override edilebilen ID üreticisi.
 final idGeneratorProvider = Provider<IdGenerator>((ref) {
@@ -19,8 +20,10 @@ final flowEngineProvider = Provider<FlowEngine>((ref) {
   return FlowEngine(gen: ref.watch(idGeneratorProvider));
 });
 
-/// Uygulama dili (Faz 6'da Ayarlar ekranından değiştirilebilir).
-final appLangProvider = StateProvider<AppLang>((ref) => AppLang.tr);
+/// Uygulama dili (SettingsController üzerinden kalıcı yönetilir).
+final appLangProvider = Provider<AppLang>((ref) {
+  return ref.watch(settingsControllerProvider).lang;
+});
 
 /// Önizleme ipucu bandının bu oturumda kapatılıp kapatılmadığı.
 final previewHintDismissedProvider = StateProvider<bool>((ref) => false);

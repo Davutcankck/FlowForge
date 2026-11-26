@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/export/drawio_exporter.dart';
 import '../../core/export/n8n_exporter.dart';
 import '../../core/export/validator.dart';
+import '../../core/l10n/app_strings.dart';
 import '../../core/models/workflow_model.dart';
 import '../../services/export_share_service.dart';
 import '../saved/saved_workflows_controller.dart';
@@ -17,6 +18,7 @@ class ExportSummaryScreen extends ConsumerWidget {
   Future<bool> _confirmIfWarnings(
     BuildContext context,
     List<ValidationIssue> issues,
+    AppLang lang,
   ) async {
     if (!issues.requiresConfirmation) return true;
 
@@ -24,19 +26,17 @@ class ExportSummaryScreen extends ConsumerWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Uyarılar Mevcut'),
-          content: const Text(
-            'Akışta uyarı seviyesinde bulgular var. Yine de dışa aktarmak istiyor musunuz?',
-          ),
+          title: Text(AppStrings.lookup('export.warningsDialogTitle', lang)),
+          content: Text(AppStrings.lookup('export.warningsDialogBody', lang)),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('İptal'),
+              child: Text(AppStrings.lookup('common.cancel', lang)),
             ),
             FilledButton(
               key: const Key('confirm_export_with_warnings_button'),
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Yine de aktar'),
+              child: Text(AppStrings.lookup('export.proceedAnyway', lang)),
             ),
           ],
         );
@@ -50,18 +50,19 @@ class ExportSummaryScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     String n8nJson,
-    List<ValidationIssue> issues, {
+    List<ValidationIssue> issues,
+    AppLang lang, {
     bool skipWarningCheck = false,
   }) async {
     if (!skipWarningCheck) {
-      final ok = await _confirmIfWarnings(context, issues);
+      final ok = await _confirmIfWarnings(context, issues, lang);
       if (!ok || !context.mounted) return;
     }
 
     await ref.read(exportShareServiceProvider).copyToClipboard(n8nJson);
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('n8n JSON panoya kopyalandı.')),
+      SnackBar(content: Text(AppStrings.lookup('export.copiedSnack', lang))),
     );
   }
 
@@ -74,8 +75,9 @@ class ExportSummaryScreen extends ConsumerWidget {
     required String extension,
     required String subject,
     required List<ValidationIssue> issues,
+    required AppLang lang,
   }) async {
-    final ok = await _confirmIfWarnings(context, issues);
+    final ok = await _confirmIfWarnings(context, issues, lang);
     if (!ok || !context.mounted) return;
 
     final fileName = sanitizeFileName(model.name, extension: extension);
@@ -92,20 +94,21 @@ class ExportSummaryScreen extends ConsumerWidget {
         builder: (dialogContext) {
           return AlertDialog(
             key: const Key('file_write_error_dialog'),
-            title: const Text('Dosya Dışa Aktarılamadı'),
+            title: Text(AppStrings.lookup('export.fileErrorTitle', lang)),
             content: Text(
-              'Dosya yazma veya paylaşım sırasında bir sorun oluştu ($e). '
-              'İsterseniz n8n JSON çıktısını doğrudan panoya kopyalayabilirsiniz.',
+              AppStrings.format('export.fileErrorBody', lang, {'error': '$e'}),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Kapat'),
+                child: Text(AppStrings.lookup('common.close', lang)),
               ),
               FilledButton.icon(
                 key: const Key('fallback_copy_json_button'),
                 icon: const Icon(Icons.copy_rounded, size: 18),
-                label: const Text('JSON\'u Panoya Kopyala'),
+                label: Text(
+                  AppStrings.lookup('export.fallbackCopyJson', lang),
+                ),
                 onPressed: () async {
                   Navigator.of(dialogContext).pop();
                   await _copyJson(
@@ -113,6 +116,7 @@ class ExportSummaryScreen extends ConsumerWidget {
                     ref,
                     n8nJsonFallback,
                     issues,
+                    lang,
                     skipWarningCheck: true,
                   );
                 },
@@ -128,11 +132,16 @@ class ExportSummaryScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     WorkflowModel model,
+    AppLang lang,
   ) async {
     await ref.read(savedWorkflowsProvider.notifier).save(model);
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('"${model.name}" cihaza kaydedildi.')),
+      SnackBar(
+        content: Text(
+          AppStrings.format('export.savedSnack', lang, {'name': model.name}),
+        ),
+      ),
     );
   }
 
@@ -141,6 +150,7 @@ class ExportSummaryScreen extends ConsumerWidget {
     final model = ref.watch(effectiveWorkflowProvider);
     final layout = ref.watch(layoutResultProvider);
     final issues = ref.watch(validationIssuesProvider);
+    final lang = ref.watch(appLangProvider);
 
     final canExport = issues.canExport;
     final n8nJson =
@@ -152,7 +162,7 @@ class ExportSummaryScreen extends ConsumerWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Dışa Aktarma ve Kayıt'),
+          title: Text(AppStrings.lookup('export.title', lang)),
         ),
         body: SafeArea(
           child: Column(
@@ -160,7 +170,7 @@ class ExportSummaryScreen extends ConsumerWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: _ValidationStatusBanner(issues: issues),
+                child: _ValidationStatusBanner(issues: issues, lang: lang),
               ),
               if (issues.isNotEmpty)
                 ConstrainedBox(
@@ -206,7 +216,7 @@ class ExportSummaryScreen extends ConsumerWidget {
                     child: Padding(
                       padding: const EdgeInsets.all(24),
                       child: Text(
-                        'Kritik doğrulama hataları giderilmeden dışa aktarma çıktısı üretilmez.',
+                        AppStrings.lookup('export.blockedBody', lang),
                         key: const Key('export_blocked_message'),
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -240,15 +250,15 @@ class ExportSummaryScreen extends ConsumerWidget {
                 FilledButton.icon(
                   key: const Key('export_save_button'),
                   icon: const Icon(Icons.save_outlined, size: 18),
-                  label: const Text('Kaydet'),
+                  label: Text(AppStrings.lookup('common.save', lang)),
                   onPressed: model.nodes.isEmpty
                       ? null
-                      : () => _saveWorkflow(context, ref, model),
+                      : () => _saveWorkflow(context, ref, model, lang),
                 ),
                 FilledButton.tonalIcon(
                   key: const Key('export_share_n8n_button'),
                   icon: const Icon(Icons.share_outlined, size: 18),
-                  label: const Text('n8n JSON Paylaş'),
+                  label: Text(AppStrings.lookup('export.shareN8n', lang)),
                   onPressed: canExport
                       ? () => _shareFile(
                             context,
@@ -259,13 +269,14 @@ class ExportSummaryScreen extends ConsumerWidget {
                             extension: '.json',
                             subject: '${model.name} (n8n JSON)',
                             issues: issues,
+                            lang: lang,
                           )
                       : null,
                 ),
                 FilledButton.tonalIcon(
                   key: const Key('export_share_drawio_button'),
                   icon: const Icon(Icons.schema_outlined, size: 18),
-                  label: const Text('draw.io Paylaş'),
+                  label: Text(AppStrings.lookup('export.shareDrawio', lang)),
                   onPressed: canExport
                       ? () => _shareFile(
                             context,
@@ -276,15 +287,16 @@ class ExportSummaryScreen extends ConsumerWidget {
                             extension: '.drawio',
                             subject: '${model.name} (draw.io)',
                             issues: issues,
+                            lang: lang,
                           )
                       : null,
                 ),
                 OutlinedButton.icon(
                   key: const Key('export_copy_json_button'),
                   icon: const Icon(Icons.copy_rounded, size: 18),
-                  label: const Text('Panoya Kopyala'),
+                  label: Text(AppStrings.lookup('export.copyClipboard', lang)),
                   onPressed: canExport
-                      ? () => _copyJson(context, ref, n8nJson!, issues)
+                      ? () => _copyJson(context, ref, n8nJson!, issues, lang)
                       : null,
                 ),
               ],
@@ -297,9 +309,13 @@ class ExportSummaryScreen extends ConsumerWidget {
 }
 
 class _ValidationStatusBanner extends StatelessWidget {
-  const _ValidationStatusBanner({required this.issues});
+  const _ValidationStatusBanner({
+    required this.issues,
+    required this.lang,
+  });
 
   final List<ValidationIssue> issues;
+  final AppLang lang;
 
   @override
   Widget build(BuildContext context) {
@@ -310,8 +326,8 @@ class _ValidationStatusBanner extends StatelessWidget {
                 const Color(0xFFFFEBEE),
                 const Color(0xFFB71C1C),
                 Icons.error_outline_rounded,
-                'Dışa Aktarma Engellendi',
-                'Devam etmek için hata seviyesindeki bulguları düzeltin.',
+                AppStrings.lookup('export.bannerErrorTitle', lang),
+                AppStrings.lookup('export.bannerErrorBody', lang),
               )
             : issues.requiresConfirmation
                 ? (
@@ -319,16 +335,16 @@ class _ValidationStatusBanner extends StatelessWidget {
                     const Color(0xFFFFF8E1),
                     const Color(0xFFE65100),
                     Icons.warning_amber_rounded,
-                    'Uyarılar Mevcut (Yine de Aktarılabilir)',
-                    'Eksik parametre veya bağlantısız düğüm uyarısı var; isterseniz yine de aktarabilirsiniz.',
+                    AppStrings.lookup('export.bannerWarningTitle', lang),
+                    AppStrings.lookup('export.bannerWarningBody', lang),
                   )
                 : (
                     const Key('validation_banner_clean'),
                     const Color(0xFFE8F5E9),
                     const Color(0xFF1B5E20),
                     Icons.check_circle_outline_rounded,
-                    'Akış Dışa Aktarmaya Hazır',
-                    'Tüm doğrulama kontrolleri sorunsuz geçti.',
+                    AppStrings.lookup('export.bannerCleanTitle', lang),
+                    AppStrings.lookup('export.bannerCleanBody', lang),
                   );
 
     return Container(

@@ -10,6 +10,7 @@ import 'package:flowforge/core/models/workflow_node.dart';
 import 'package:flowforge/features/export/export_summary_screen.dart';
 import 'package:flowforge/features/preview/preview_screen.dart';
 import 'package:flowforge/features/saved/saved_workflows_controller.dart';
+import 'package:flowforge/features/settings/settings_controller.dart';
 import 'package:flowforge/features/wizard/flow_controller.dart';
 import 'package:flowforge/main.dart';
 import 'package:flowforge/services/export_share_service.dart';
@@ -151,6 +152,31 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.byKey(const Key('saved_empty_state_title')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Hive başlatma hatasında storage_init_failed_banner gösterilir ve uygulama çökmez',
+      (tester) async {
+        final container = ProviderContainer(
+          overrides: [
+            storageInitFailedProvider.overrideWith((ref) => true),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const FlowForgeApp(),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const Key('storage_init_failed_banner')),
+          findsOneWidget,
+        );
       },
     );
   });

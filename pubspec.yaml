@@ -68,6 +68,12 @@ dev_dependencies:
   # Pure Dart test assertions (used directly by models_test.dart)
   test: ^1.26.0
 
+dependency_overrides:
+  # path_provider_android 2.3.x JNI köprüsü Android API 37'de Context
+  # ClassNotFoundException fırlattığı için kararlı Pigeon/MethodChannel
+  # sürümüne sabitlendi.
+  path_provider_android: 2.2.22
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 

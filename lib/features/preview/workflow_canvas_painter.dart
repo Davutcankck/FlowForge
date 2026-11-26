@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -113,10 +113,12 @@ class WorkflowCanvasPainter extends CustomPainter {
         (start.dy + end.dy) / 2 - 10,
       );
       final isTrue = label == 'true';
-      final pillFill =
-          isTrue ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE);
-      final pillText =
-          isTrue ? const Color(0xFF2E7D32) : const Color(0xFFC62828);
+      final pillFill = isDark
+          ? (isTrue ? const Color(0xFF1B3B2B) : const Color(0xFF4A1D1D))
+          : (isTrue ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE));
+      final pillText = isDark
+          ? (isTrue ? const Color(0xFF81C784) : const Color(0xFFEF9A9A))
+          : (isTrue ? const Color(0xFF2E7D32) : const Color(0xFFC62828));
 
       final textPainter = TextPainter(
         text: TextSpan(
@@ -177,11 +179,13 @@ class WorkflowCanvasPainter extends CustomPainter {
       canvas.drawRRect(rrect, strokePaint);
     }
 
+    final textColor =
+        isDark ? const Color(0xFFF3F4F6) : const Color(0xFF1F2937);
     final textPainter = TextPainter(
       text: TextSpan(
         text: node.name,
-        style: const TextStyle(
-          color: Color(0xFF1F2937),
+        style: TextStyle(
+          color: textColor,
           fontSize: 13,
           fontWeight: FontWeight.w600,
         ),
@@ -229,6 +233,27 @@ class WorkflowCanvasPainter extends CustomPainter {
   }
 
   (Color fill, Color stroke) _colorsForCategory(NodeCategory category) {
+    if (isDark) {
+      return switch (category) {
+        NodeCategory.trigger => (
+            const Color(0xFF1B3B2B),
+            const Color(0xFF66BB6A),
+          ),
+        NodeCategory.action => (
+            const Color(0xFF1A2F4A),
+            const Color(0xFF64B5F6),
+          ),
+        NodeCategory.logic => (
+            const Color(0xFF3D3115),
+            const Color(0xFFFFD54F),
+          ),
+        NodeCategory.output => (
+            const Color(0xFF2A2D34),
+            const Color(0xFF9CA3AF),
+          ),
+      };
+    }
+
     return switch (category) {
       NodeCategory.trigger => (
           const Color(0xFFD5E8D4),
