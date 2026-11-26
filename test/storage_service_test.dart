@@ -129,7 +129,7 @@ void main() {
       expect(storage.loadAll().workflows, isEmpty);
     });
 
-    test('bozuk JSON kaydı çökmeden atlanır ve corruptedIds içinde raporlanır',
+    test('bozuk JSON kaydı çökmeden atlanır, silinmez ve corruptedIds içinde raporlanır',
         () async {
       final valid = _sampleWorkflow(
         id: 'wf-good',
@@ -148,6 +148,69 @@ void main() {
         result.corruptedIds,
         containsAll(['wf-corrupt-1', 'wf-corrupt-2']),
       );
+      // Bozuk kayıtlar otomatik silinmemeli
+      expect(box.containsKey('wf-corrupt-1'), isTrue);
+      expect(box.containsKey('wf-corrupt-2'), isTrue);
+    });
+
+    test('desteklenmeyen schemaVersion (> 1) kayıt atlanır, corruptedIds\'e girer ve silinmez',
+        () async {
+      final futureSchema = _sampleWorkflow(
+        id: 'wf-future',
+        name: 'Gelecek Sürüm',
+        updatedAt: DateTime.utc(2026, 7, 1),
+      ).copyWith(schemaVersion: 2);
+      await storage.save(futureSchema);
+
+      final result = storage.loadAll();
+      expect(result.workflows, isEmpty);
+      expect(result.hasCorrupted, isTrue);
+      expect(result.corruptedIds, ['wf-future']);
+      // Kayıt kutudan otomatik silinmemeli
+      expect(box.containsKey('wf-future'), isTrue);
+    });
+  });
+
+  group('ExportShareService (MIME + geçici dosya temizliği)', () {
+    test('shareTextAsFile doğru MIME türü verir ve paylaşımdan sonra geçici dosyayı siler',
+        () async {
+      final tempDir = Directory.systemTemp.createTempSync('flowforge_share_test_');
+      addTearDown(() {
+        if (tempDir.existsSync()) {
+          tempDir.deleteSync(recursive: true);
+        }
+      });
+
+      String? capturedMime;
+      String? capturedPath;
+      var existedDuringShare = false;
+
+      final service = ExportShareService(
+        tempDirectoryProvider: () async => tempDir,
+        shareFileHandler: (xFile, subject) async {
+          capturedMime = xFile.mimeType;
+          capturedPath = xFile.path;
+          existedDuringShare = File(xFile.path).existsSync();
+        },
+      );
+
+      await service.shareTextAsFile(
+        content: '{"name":"Test"}',
+        fileName: 'test.json',
+        subject: 'Test JSON',
+      );
+      expect(existedDuringShare, isTrue);
+      expect(capturedMime, 'application/json');
+      expect(File(capturedPath!).existsSync(), isFalse);
+
+      await service.shareTextAsFile(
+        content: '<mxfile/>',
+        fileName: 'test.drawio',
+        subject: 'Test Drawio',
+      );
+      expect(existedDuringShare, isTrue);
+      expect(capturedMime, 'application/xml');
+      expect(File(capturedPath!).existsSync(), isFalse);
     });
   });
 

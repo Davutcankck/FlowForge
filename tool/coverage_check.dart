@@ -20,6 +20,7 @@ void main() {
     'lib/core/questions/',
     'lib/core/layout/',
     'lib/core/export/',
+    'lib/services/',
   ];
 
   final linesByDir = <String, int>{for (final d in targetDirs) d: 0};
@@ -85,7 +86,7 @@ void main() {
   if (grandTotal > 0) {
     final totalPct = grandHit / grandTotal * 100;
     stdout.writeln(
-      'Toplam (questions + layout + export): '
+      'Toplam (core + services): '
       '$grandHit / $grandTotal = ${totalPct.toStringAsFixed(1)}%',
     );
   }

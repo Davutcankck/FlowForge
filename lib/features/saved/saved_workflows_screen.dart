@@ -71,6 +71,45 @@ class SavedWorkflowsScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _confirmDeleteCorrupted(
+    BuildContext context,
+    WidgetRef ref,
+    List<String> corruptedIds,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Bozuk Kayıtlar Silinsin mi?'),
+          content: Text(
+            '${corruptedIds.length} okunamayan veya desteklenmeyen sürümdeki kayıt kalıcı olarak silinecek.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('İptal'),
+            ),
+            FilledButton(
+              key: const Key('confirm_delete_corrupted_button'),
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Sil'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await ref
+          .read(savedWorkflowsProvider.notifier)
+          .deleteCorrupted(corruptedIds);
+    }
+  }
+
   void _startNew(BuildContext context, WidgetRef ref) {
     ref.read(flowControllerProvider.notifier).startNewWorkflow();
     Navigator.of(context).push(
@@ -127,6 +166,15 @@ class SavedWorkflowsScreen extends ConsumerWidget {
                               .bodySmall
                               ?.copyWith(color: const Color(0xFFE65100)),
                         ),
+                      ),
+                      TextButton(
+                        key: const Key('delete_corrupted_records_button'),
+                        onPressed: () => _confirmDeleteCorrupted(
+                          context,
+                          ref,
+                          loadResult.corruptedIds,
+                        ),
+                        child: const Text('Temizle'),
                       ),
                     ],
                   ),

@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
@@ -36,6 +36,7 @@ class StorageService implements WorkflowStorage {
   StorageService(this._box);
 
   static const String boxName = 'workflows';
+  static const int supportedSchemaVersion = 1;
 
   final Box<String> _box;
 
@@ -64,7 +65,12 @@ class StorageService implements WorkflowStorage {
           corruptedIds.add(key);
           continue;
         }
-        workflows.add(WorkflowModel.fromJson(decoded));
+        final model = WorkflowModel.fromJson(decoded);
+        if (model.schemaVersion > supportedSchemaVersion) {
+          corruptedIds.add(key);
+          continue;
+        }
+        workflows.add(model);
       } catch (_) {
         corruptedIds.add(key);
       }
@@ -131,7 +137,12 @@ class InMemoryStorageService implements WorkflowStorage {
           corruptedIds.add(entry.key);
           continue;
         }
-        workflows.add(WorkflowModel.fromJson(decoded));
+        final model = WorkflowModel.fromJson(decoded);
+        if (model.schemaVersion > StorageService.supportedSchemaVersion) {
+          corruptedIds.add(entry.key);
+          continue;
+        }
+        workflows.add(model);
       } catch (_) {
         corruptedIds.add(entry.key);
       }

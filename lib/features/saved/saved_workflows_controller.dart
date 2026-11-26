@@ -41,6 +41,14 @@ class SavedWorkflowsController extends Notifier<StorageLoadResult> {
     state = _storage.loadAll();
   }
 
+  /// Kullanıcı onayı ile bozuk kayıtları siler ve listeyi yeniler.
+  Future<void> deleteCorrupted(List<String> ids) async {
+    for (final id in ids) {
+      await _storage.delete(id);
+    }
+    state = _storage.loadAll();
+  }
+
   /// Akışı yeniden adlandırır ve listeyi yeniler.
   Future<void> rename(String id, String newName) async {
     await _storage.rename(id, newName);

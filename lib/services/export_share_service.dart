@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -46,25 +46,57 @@ String sanitizeFileName(String rawName, {required String extension}) {
   return '$sanitized$cleanExt';
 }
 
+/// Dosya uzantısına göre MIME türünü döndürür.
+String mimeTypeForFileName(String fileName) {
+  final lower = fileName.toLowerCase();
+  if (lower.endsWith('.json')) return 'application/json';
+  if (lower.endsWith('.drawio') || lower.endsWith('.xml')) {
+    return 'application/xml';
+  }
+  return 'text/plain';
+}
+
 /// Dışa aktarılan dosyaları yazma, sistem paylaşımı ve panoya kopyalama servisi (FR-10).
 class ExportShareService {
-  const ExportShareService();
+  const ExportShareService({
+    this.tempDirectoryProvider,
+    this.shareFileHandler,
+  });
 
-  /// Metin içeriğini geçici dizine dosya olarak yazar ve sistem paylaşım menüsünü açar.
+  final Future<Directory> Function()? tempDirectoryProvider;
+  final Future<void> Function(XFile file, String subject)? shareFileHandler;
+
+  /// Metin içeriğini geçici dizine dosya olarak yazar, uygun MIME türüyle paylaşır
+  /// ve paylaşım tamamlandıktan sonra geçici dosyayı temizler.
   Future<void> shareTextAsFile({
     required String content,
     required String fileName,
     required String subject,
   }) async {
-    final tempDir = await getTemporaryDirectory();
+    final tempDir =
+        await (tempDirectoryProvider?.call() ?? getTemporaryDirectory());
     final file = File('${tempDir.path}${Platform.pathSeparator}$fileName');
     await file.writeAsString(content);
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(file.path)],
-        subject: subject,
-      ),
-    );
+    try {
+      final xFile = XFile(
+        file.path,
+        mimeType: mimeTypeForFileName(fileName),
+      );
+      if (shareFileHandler != null) {
+        await shareFileHandler!(xFile, subject);
+      } else {
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [xFile],
+            subject: subject,
+          ),
+        );
+      }
+    } finally {
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
   }
 
   /// Verilen metni sistem panosuna kopyalar.
