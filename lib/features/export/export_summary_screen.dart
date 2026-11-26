@@ -16,12 +16,15 @@ class ExportSummaryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final model = ref.watch(laidOutWorkflowProvider);
+    final model = ref.watch(effectiveWorkflowProvider);
+    final layout = ref.watch(layoutResultProvider);
     final issues = ref.watch(validationIssuesProvider);
 
     final canExport = issues.canExport;
-    final n8nJson = canExport ? const N8nExporter().export(model) : null;
-    final drawioXml = canExport ? const DrawioExporter().export(model) : null;
+    final n8nJson =
+        canExport ? const N8nExporter().export(model, layout: layout) : null;
+    final drawioXml =
+        canExport ? const DrawioExporter().export(model, layout: layout) : null;
 
     return DefaultTabController(
       length: 2,

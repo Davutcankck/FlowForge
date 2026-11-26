@@ -41,7 +41,7 @@ void main() {
       final copied = model.copyWith(name: 'Renamed');
 
       expect(copied.name, 'Renamed');
-      expect(model.name, 'FlowForge Workflow');
+      expect(model.name, 'Yeni Workflow');
       expect(copied.nodes.length, model.nodes.length);
       expect(identical(copied.nodes, model.nodes), isFalse);
     });

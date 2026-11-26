@@ -1,23 +1,65 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/layout/hit_tester.dart';
 import '../../core/models/workflow_node.dart';
 import '../export/export_summary_screen.dart';
 import '../wizard/flow_controller.dart';
-import 'canvas_layout_geometry.dart';
 import 'widgets/node_param_sheet.dart';
 import 'workflow_canvas_painter.dart';
 
-/// Yakınlaştırma/kaydırma ve düğüme dokunarak parametre düzenleme destekli
-/// canlı workflow önizleme ekranı (SDD 6.1, FR-05, FR-11).
-class PreviewScreen extends ConsumerWidget {
+/// Yakınlaştırma/kaydırma, ilk açılışta `fitToScreen` ve düğüme dokunarak
+/// parametre düzenleme destekli canlı workflow önizleme ekranı (SDD 6.1, FR-05, FR-11).
+class PreviewScreen extends ConsumerStatefulWidget {
   const PreviewScreen({super.key});
 
-  Future<void> _showRenameDialog(
-    BuildContext context,
-    WidgetRef ref,
-    String currentName,
-  ) async {
+  @override
+  ConsumerState<PreviewScreen> createState() => _PreviewScreenState();
+}
+
+class _PreviewScreenState extends ConsumerState<PreviewScreen> {
+  final TransformationController _transformationController =
+      TransformationController();
+  Size? _lastViewportSize;
+  Size? _lastCanvasSize;
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    super.dispose();
+  }
+
+  /// Tuvali gerçek viewport boyutuna sığdırıp ortalar.
+  ///
+  /// `scale = min(viewW / canvasW, viewH / canvasH).clamp(0.3, 1.0)`
+  void _fitToScreen(Size viewportSize, Size canvasSize) {
+    if (viewportSize.width <= 0 ||
+        viewportSize.height <= 0 ||
+        canvasSize.width <= 0 ||
+        canvasSize.height <= 0) {
+      return;
+    }
+
+    final scale = math
+        .min(
+          viewportSize.width / canvasSize.width,
+          viewportSize.height / canvasSize.height,
+        )
+        .clamp(0.3, 1.0);
+
+    final dx = (viewportSize.width - canvasSize.width * scale) / 2.0;
+    final dy = (viewportSize.height - canvasSize.height * scale) / 2.0;
+
+    final matrix = Matrix4.identity()
+      ..translateByDouble(dx, dy, 0.0, 1.0)
+      ..scaleByDouble(scale, scale, scale, 1.0);
+
+    _transformationController.value = matrix;
+  }
+
+  Future<void> _showRenameDialog(String currentName) async {
     final updated = await showDialog<String>(
       context: context,
       builder: (_) => _RenameWorkflowDialog(initialName: currentName),
@@ -28,11 +70,8 @@ class PreviewScreen extends ConsumerWidget {
     }
   }
 
-  void _openNodeParamSheet(
-    BuildContext context,
-    WidgetRef ref,
-    WorkflowNode node,
-  ) {
+  void _openNodeParamSheet(WorkflowNode node) {
+    ref.read(previewHintDismissedProvider.notifier).state = true;
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -49,14 +88,16 @@ class PreviewScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final model = ref.watch(laidOutWorkflowProvider);
+  Widget build(BuildContext context) {
+    final model = ref.watch(effectiveWorkflowProvider);
+    final layout = ref.watch(layoutResultProvider);
     final issues = ref.watch(validationIssuesProvider);
+    final hintDismissed = ref.watch(previewHintDismissedProvider);
     final warningNodeIds = issues
         .where((i) => i.code == 'V-04' && i.nodeId != null)
         .map((i) => i.nodeId!)
         .toSet();
-    final geometry = CanvasLayoutGeometry.fromModel(model);
+    const hitTester = CanvasHitTester();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -67,11 +108,22 @@ class PreviewScreen extends ConsumerWidget {
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
+          if (model.nodes.isNotEmpty)
+            IconButton(
+              key: const Key('preview_fit_screen_button'),
+              tooltip: 'Ekrana sığdır',
+              icon: const Icon(Icons.fit_screen_outlined),
+              onPressed: () {
+                if (_lastViewportSize != null) {
+                  _fitToScreen(_lastViewportSize!, layout.canvasSize);
+                }
+              },
+            ),
           IconButton(
             key: const Key('preview_rename_button'),
             tooltip: 'Workflow adını düzenle',
             icon: const Icon(Icons.edit_outlined),
-            onPressed: () => _showRenameDialog(context, ref, model.name),
+            onPressed: () => _showRenameDialog(model.name),
           ),
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -96,62 +148,95 @@ class PreviewScreen extends ConsumerWidget {
             )
           : Column(
               children: [
-                Material(
-                  color: Theme.of(context).colorScheme.surfaceContainerLow,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.touch_app_outlined,
-                          size: 18,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Parametre düzenlemek için bir düğüme dokunun. Yakınlaştırmak için sıkıştırın.',
-                            style: Theme.of(context).textTheme.bodySmall,
+                if (!hintDismissed)
+                  Material(
+                    key: const Key('preview_hint_banner'),
+                    color: Theme.of(context).colorScheme.surfaceContainerLow,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.touch_app_outlined,
+                            size: 18,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: InteractiveViewer(
-                    key: const Key('preview_interactive_viewer'),
-                    constrained: false,
-                    boundaryMargin: const EdgeInsets.all(160),
-                    minScale: 0.4,
-                    maxScale: 2.5,
-                    child: GestureDetector(
-                      key: const Key('preview_canvas_gesture'),
-                      behavior: HitTestBehavior.opaque,
-                      onTapUp: (details) {
-                        final tapped = geometry.hitTest(details.localPosition);
-                        if (tapped != null) {
-                          _openNodeParamSheet(context, ref, tapped);
-                        }
-                      },
-                      child: SizedBox(
-                        width: geometry.canvasSize.width,
-                        height: geometry.canvasSize.height,
-                        child: CustomPaint(
-                          key: const Key('preview_workflow_canvas'),
-                          size: geometry.canvasSize,
-                          painter: WorkflowCanvasPainter(
-                            model: model,
-                            geometry: geometry,
-                            warningNodeIds: warningNodeIds,
-                            isDark: isDark,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Parametre düzenlemek için bir düğüme dokunun. Yakınlaştırmak için sıkıştırın.',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
                           ),
-                        ),
+                          IconButton(
+                            key: const Key('dismiss_preview_hint_button'),
+                            tooltip: 'İpucunu kapat',
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.close_rounded, size: 18),
+                            onPressed: () {
+                              ref
+                                  .read(previewHintDismissedProvider.notifier)
+                                  .state = true;
+                            },
+                          ),
+                        ],
                       ),
                     ),
+                  ),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final viewportSize = constraints.biggest;
+                      if (_lastViewportSize != viewportSize ||
+                          _lastCanvasSize != layout.canvasSize) {
+                        _lastViewportSize = viewportSize;
+                        _lastCanvasSize = layout.canvasSize;
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (!mounted) return;
+                          _fitToScreen(viewportSize, layout.canvasSize);
+                        });
+                      }
+
+                      return InteractiveViewer(
+                        key: const Key('preview_interactive_viewer'),
+                        transformationController: _transformationController,
+                        constrained: false,
+                        boundaryMargin: const EdgeInsets.all(200),
+                        minScale: 0.3,
+                        maxScale: 2.5,
+                        child: GestureDetector(
+                          key: const Key('preview_canvas_gesture'),
+                          behavior: HitTestBehavior.opaque,
+                          onTapUp: (details) {
+                            final currentScale = _transformationController.value
+                                .getMaxScaleOnAxis();
+                            final tapped = hitTester.hitTest(
+                              scenePoint: details.localPosition,
+                              nodes: model.nodes,
+                              layout: layout,
+                              scale: currentScale,
+                            );
+                            if (tapped != null) {
+                              _openNodeParamSheet(tapped);
+                            }
+                          },
+                          child: SizedBox(
+                            width: layout.canvasSize.width,
+                            height: layout.canvasSize.height,
+                            child: CustomPaint(
+                              key: const Key('preview_workflow_canvas'),
+                              size: layout.canvasSize,
+                              painter: WorkflowCanvasPainter(
+                                model: model,
+                                layout: layout,
+                                warningNodeIds: warningNodeIds,
+                                isDark: isDark,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],

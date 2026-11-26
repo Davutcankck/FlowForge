@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:flowforge/core/layout/auto_layout.dart';
@@ -22,44 +24,44 @@ WorkflowModel _buildScenarioModel(Scenario scenario) {
 void main() {
   const layout = AutoLayout();
 
-  group('AutoLayout', () {
-    test('boş model aynı şekilde döner', () {
+  group('AutoLayout (LayoutResult)', () {
+    test('boş model boş nodeRects ve minimum tuval boyutu döner', () {
       final empty = WorkflowModel.empty(gen: SequentialIdGenerator());
-      final result = layout.apply(empty);
-      expect(result.nodes, isEmpty);
-      expect(result.edges, isEmpty);
+      final result = layout.compute(empty);
+      expect(result.nodeRects, isEmpty);
+      expect(result.sceneRects, isEmpty);
+      expect(result.canvasSize.width, greaterThanOrEqualTo(420));
+      expect(result.canvasSize.height, greaterThanOrEqualTo(320));
     });
 
-    test('lineer akış: x = derinlik * 250, y = 0 ve immutability korunur', () {
+    test('lineer akış: x = derinlik * 250, y = 0, tüm düğümler 140x60', () {
       final model = _buildScenarioModel(scenarioLinear);
-      final laidOut = layout.apply(model);
+      final result = layout.compute(model);
 
-      // Orijinal model değişmemeli
-      expect(model.nodes.every((n) => n.position == Offset.zero), isTrue);
-
-      expect(laidOut.nodes[0].position, const Offset(0, 0));
-      expect(laidOut.nodes[1].position, const Offset(250, 0));
-      expect(laidOut.nodes[2].position, const Offset(500, 0));
+      expect(result.nodeRects[model.nodes[0].id], const Rect.fromLTWH(0, 0, 140, 60));
+      expect(result.nodeRects[model.nodes[1].id], const Rect.fromLTWH(250, 0, 140, 60));
+      expect(result.nodeRects[model.nodes[2].id], const Rect.fromLTWH(500, 0, 140, 60));
     });
 
-    test('SDD Bölüm 7 IF dallanma: true -60, false +60 kaydırılır', () {
+    test('SDD Bölüm 7 IF dallanma: true -60, false +60 ve sceneRects = nodeRects + originOffset',
+        () {
       final model = _buildScenarioModel(scenarioIfBranch);
-      final laidOut = layout.apply(model);
+      final result = layout.compute(model);
 
-      expect(laidOut.nodes[0].templateKey, 'webhook');
-      expect(laidOut.nodes[0].position, const Offset(0, 0));
+      expect(result.nodeRects[model.nodes[0].id]!.topLeft, const Offset(0, 0));
+      expect(result.nodeRects[model.nodes[1].id]!.topLeft, const Offset(250, 0));
+      expect(result.nodeRects[model.nodes[2].id]!.topLeft, const Offset(500, 0));
+      expect(result.nodeRects[model.nodes[2].id]!.size, const Size(140, 60));
+      expect(result.nodeRects[model.nodes[3].id]!.topLeft, const Offset(750, -60));
+      expect(result.nodeRects[model.nodes[4].id]!.topLeft, const Offset(750, 60));
 
-      expect(laidOut.nodes[1].templateKey, 'httpRequest');
-      expect(laidOut.nodes[1].position, const Offset(250, 0));
-
-      expect(laidOut.nodes[2].templateKey, 'if');
-      expect(laidOut.nodes[2].position, const Offset(500, 0));
-
-      expect(laidOut.nodes[3].templateKey, 'googleSheets');
-      expect(laidOut.nodes[3].position, const Offset(750, -60));
-
-      expect(laidOut.nodes[4].templateKey, 'telegram');
-      expect(laidOut.nodes[4].position, const Offset(750, 60));
+      // sceneRects pozitif koordinatlara taşınmış olmalı
+      for (final entry in result.nodeRects.entries) {
+        expect(
+          result.sceneRects[entry.key],
+          entry.value.shift(result.originOffset),
+        );
+      }
     });
 
     test('iç içe IF dallanmasında çakışma olmaz', () {
@@ -120,13 +122,13 @@ void main() {
         ],
       );
 
-      final laidOut = layout.apply(model);
-      final positions = laidOut.nodes.map((n) => n.position).toSet();
-      expect(positions.length, laidOut.nodes.length);
-      expect(laidOut.nodeById('n3')!.position, const Offset(500, -60));
-      expect(laidOut.nodeById('n4')!.position, const Offset(500, 60));
-      expect(laidOut.nodeById('n5')!.position, const Offset(750, -120));
-      expect(laidOut.nodeById('n6')!.position, const Offset(750, 0));
+      final result = layout.compute(model);
+      final positions = result.nodeRects.values.map((r) => r.topLeft).toSet();
+      expect(positions.length, model.nodes.length);
+      expect(result.nodeRects['n3']!.topLeft, const Offset(500, -60));
+      expect(result.nodeRects['n4']!.topLeft, const Offset(500, 60));
+      expect(result.nodeRects['n5']!.topLeft, const Offset(750, -120));
+      expect(result.nodeRects['n6']!.topLeft, const Offset(750, 0));
     });
 
     test('döngülü (cycle) akışta sonsuz döngüye girmeden deterministik yerleşir',
@@ -165,13 +167,13 @@ void main() {
         ],
       );
 
-      final laidOut = layout.apply(cyclic);
-      expect(laidOut.nodeById('a')!.position, const Offset(0, 0));
-      expect(laidOut.nodeById('b')!.position, const Offset(250, 0));
-      expect(laidOut.nodeById('c')!.position, const Offset(500, 0));
+      final result = layout.compute(cyclic);
+      expect(result.nodeRects['a']!.topLeft, const Offset(0, 0));
+      expect(result.nodeRects['b']!.topLeft, const Offset(250, 0));
+      expect(result.nodeRects['c']!.topLeft, const Offset(500, 0));
     });
 
-    test('triggersız saf döngü ve bağlantısız (orphan) düğümler deterministik yerleşir',
+    test('bağlantısız (orphan) düğümler ve ayrık döngüler deterministik yerleşir',
         () {
       final model = WorkflowModel(
         id: 'wf-orphan',
@@ -229,15 +231,14 @@ void main() {
         ],
       );
 
-      final laidOut = layout.apply(model);
-      // Tüm düğümler benzersiz ve sonlu pozisyon almalı
-      final posSet = laidOut.nodes.map((n) => n.position).toSet();
-      expect(posSet.length, laidOut.nodes.length);
-      expect(laidOut.nodeById('n1')!.position, const Offset(0, 0));
-      expect(laidOut.nodeById('n2')!.position, const Offset(250, 0));
-      expect(laidOut.nodeById('orphan1')!.position, const Offset(0, 120));
-      expect(laidOut.nodeById('orphanCycleA')!.position, const Offset(0, 240));
-      expect(laidOut.nodeById('orphanCycleB')!.position, const Offset(250, 240));
+      final result = layout.compute(model);
+      final posSet = result.nodeRects.values.map((r) => r.topLeft).toSet();
+      expect(posSet.length, model.nodes.length);
+      expect(result.nodeRects['n1']!.topLeft, const Offset(0, 0));
+      expect(result.nodeRects['n2']!.topLeft, const Offset(250, 0));
+      expect(result.nodeRects['orphan1']!.topLeft, const Offset(0, 120));
+      expect(result.nodeRects['orphanCycleA']!.topLeft, const Offset(0, 240));
+      expect(result.nodeRects['orphanCycleB']!.topLeft, const Offset(250, 240));
     });
   });
 }

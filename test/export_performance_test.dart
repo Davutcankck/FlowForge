@@ -62,9 +62,9 @@ void main() {
     expect(model.nodes.length, 50);
 
     final n8nWatch = Stopwatch()..start();
-    final laidOutForN8n = layout.apply(model);
-    final issues = validator.validate(laidOutForN8n);
-    final n8nJson = n8nExporter.export(laidOutForN8n);
+    final layoutForN8n = layout.compute(model);
+    final issues = validator.validate(model);
+    final n8nJson = n8nExporter.export(model, layout: layoutForN8n);
     n8nWatch.stop();
 
     expect(issues.canExport, isTrue);
@@ -76,8 +76,8 @@ void main() {
     );
 
     final drawioWatch = Stopwatch()..start();
-    final laidOutForDrawio = layout.apply(model);
-    final drawioXml = drawioExporter.export(laidOutForDrawio);
+    final layoutForDrawio = layout.compute(model);
+    final drawioXml = drawioExporter.export(model, layout: layoutForDrawio);
     drawioWatch.stop();
 
     expect(drawioXml, isNotEmpty);

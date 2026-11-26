@@ -10,7 +10,7 @@ const List<NodeTemplate> actionTemplates = [
     displayName: 'HTTP Request',
     category: NodeCategory.action,
     n8nType: 'n8n-nodes-base.httpRequest',
-    typeVersion: 4.2, // TODO(verify-n8n)
+    typeVersion: 1, // TODO(verify-n8n)
     defaultParameters: {'url': '', 'method': 'GET'},
     requiredParameters: ['url'],
     outputs: 1,

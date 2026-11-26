@@ -22,6 +22,9 @@ final flowEngineProvider = Provider<FlowEngine>((ref) {
 /// Uygulama dili (Faz 6'da Ayarlar ekranından değiştirilebilir).
 final appLangProvider = StateProvider<AppLang>((ref) => AppLang.tr);
 
+/// Önizleme ipucu bandının bu oturumda kapatılıp kapatılmadığı.
+final previewHintDismissedProvider = StateProvider<bool>((ref) => false);
+
 /// Tek yönlü akış state yöneticisi (SDD Bölüm 2 & 5.1).
 class FlowController extends Notifier<FlowState> {
   FlowEngine get _engine => ref.read(flowEngineProvider);
@@ -77,14 +80,20 @@ final availableOptionsProvider = Provider<List<Option>>((ref) {
   return engine.availableOptions(state);
 });
 
-/// Her cevap, geri alma ve parametre düzenlemesinde AutoLayout uygulanmış canlı model (FR-05).
-final laidOutWorkflowProvider = Provider<WorkflowModel>((ref) {
+/// Kullanıcı parametre düzenlemeleri birleştirilmiş canlı akış modeli (tek doğruluk kaynağı).
+final effectiveWorkflowProvider = Provider<WorkflowModel>((ref) {
   final state = ref.watch(flowControllerProvider);
-  return const AutoLayout().apply(state.effectiveModel);
+  return state.effectiveModel;
+});
+
+/// Canlı yerleşim sonucu (`nodeRects`, `sceneRects`, `originOffset`, `canvasSize`).
+final layoutResultProvider = Provider<LayoutResult>((ref) {
+  final model = ref.watch(effectiveWorkflowProvider);
+  return const AutoLayout().compute(model);
 });
 
 /// Canlı doğrulama bulguları (SDD 5.5).
 final validationIssuesProvider = Provider<List<ValidationIssue>>((ref) {
-  final model = ref.watch(laidOutWorkflowProvider);
+  final model = ref.watch(effectiveWorkflowProvider);
   return const Validator().validate(model);
 });

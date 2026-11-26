@@ -19,7 +19,7 @@
       "id": "id-3",
       "name": "HTTP Request",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "typeVersion": 1,
       "position": [
         250,
         0
@@ -31,34 +31,12 @@
     },
     {
       "id": "id-4",
-      "name": "IF",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [
-        500,
-        0
-      ],
-      "parameters": {}
-    },
-    {
-      "id": "id-5",
-      "name": "Google Sheets",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 1,
-      "position": [
-        750,
-        -60
-      ],
-      "parameters": {}
-    },
-    {
-      "id": "id-6",
       "name": "Telegram",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1,
       "position": [
-        750,
-        60
+        500,
+        0
       ],
       "parameters": {}
     }
@@ -79,24 +57,6 @@
       "main": [
         [
           {
-            "node": "IF",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF": {
-      "main": [
-        [
-          {
-            "node": "Google Sheets",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
             "node": "Telegram",
             "type": "main",
             "index": 0
@@ -104,5 +64,13 @@
         ]
       ]
     }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": ""
   }
 }

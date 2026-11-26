@@ -4,21 +4,22 @@ import 'package:flutter/material.dart';
 
 import '../../core/catalog/node_catalog.dart';
 import '../../core/catalog/node_category.dart';
+import '../../core/layout/auto_layout.dart';
 import '../../core/models/workflow_model.dart';
 import '../../core/models/workflow_node.dart';
-import 'canvas_layout_geometry.dart';
 
-/// Akış düğümlerini ve yönlü bağlantıları çizen [CustomPainter] (SDD 6.1).
+/// Akış düğümlerini ve yönlü bağlantıları [LayoutResult.sceneRects] üzerinden çizen
+/// [CustomPainter] (SDD 6.1).
 class WorkflowCanvasPainter extends CustomPainter {
   WorkflowCanvasPainter({
     required this.model,
-    required this.geometry,
+    required this.layout,
     required this.warningNodeIds,
     required this.isDark,
   });
 
   final WorkflowModel model;
-  final CanvasLayoutGeometry geometry;
+  final LayoutResult layout;
   final Set<String> warningNodeIds;
   final bool isDark;
 
@@ -26,14 +27,15 @@ class WorkflowCanvasPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (model.nodes.isEmpty) return;
 
+    final sceneRects = layout.sceneRects;
     final nodeById = <String, WorkflowNode>{
       for (final node in model.nodes) node.id: node,
     };
 
     // 1. Önce bağlantıları (edges) çiz
     for (final edge in model.edges) {
-      final fromRect = geometry.rectFor(edge.fromId);
-      final toRect = geometry.rectFor(edge.toId);
+      final fromRect = sceneRects[edge.fromId];
+      final toRect = sceneRects[edge.toId];
       final fromNode = nodeById[edge.fromId];
       if (fromRect == null || toRect == null || fromNode == null) continue;
 
@@ -54,7 +56,7 @@ class WorkflowCanvasPainter extends CustomPainter {
 
     // 2. Düğümleri (nodes) çiz
     for (final node in model.nodes) {
-      final rect = geometry.rectFor(node.id);
+      final rect = sceneRects[node.id];
       if (rect == null) continue;
       _drawNode(canvas, node, rect);
     }
@@ -66,7 +68,8 @@ class WorkflowCanvasPainter extends CustomPainter {
     Offset end, {
     String? label,
   }) {
-    final edgeColor = isDark ? const Color(0xFFB0BEC5) : const Color(0xFF546E7A);
+    final edgeColor =
+        isDark ? const Color(0xFFB0BEC5) : const Color(0xFF546E7A);
     final paint = Paint()
       ..color = edgeColor
       ..strokeWidth = 2.0
@@ -79,7 +82,6 @@ class WorkflowCanvasPainter extends CustomPainter {
 
     canvas.drawPath(path, paint);
 
-    // Ok ucu (arrowhead)
     const arrowLength = 10.0;
     const arrowAngle = math.pi / 6;
     final angle = math.atan2(end.dy - start.dy, end.dx - midX);
@@ -105,19 +107,16 @@ class WorkflowCanvasPainter extends CustomPainter {
         ..style = PaintingStyle.fill,
     );
 
-    // IF dal etiketi ("true" / "false")
     if (label != null) {
       final labelCenter = Offset(
         (start.dx + end.dx) / 2,
         (start.dy + end.dy) / 2 - 10,
       );
       final isTrue = label == 'true';
-      final pillFill = isTrue
-          ? const Color(0xFFE8F5E9)
-          : const Color(0xFFFFEBEE);
-      final pillText = isTrue
-          ? const Color(0xFF2E7D32)
-          : const Color(0xFFC62828);
+      final pillFill =
+          isTrue ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE);
+      final pillText =
+          isTrue ? const Color(0xFF2E7D32) : const Color(0xFFC62828);
 
       final textPainter = TextPainter(
         text: TextSpan(
@@ -178,7 +177,6 @@ class WorkflowCanvasPainter extends CustomPainter {
       canvas.drawRRect(rrect, strokePaint);
     }
 
-    // Düğüm adı
     final textPainter = TextPainter(
       text: TextSpan(
         text: node.name,
@@ -202,7 +200,6 @@ class WorkflowCanvasPainter extends CustomPainter {
       ),
     );
 
-    // V-04 uyarı rozeti
     if (warningNodeIds.contains(node.id)) {
       final badgeCenter = Offset(rect.right - 8, rect.top + 8);
       canvas.drawCircle(
@@ -255,6 +252,7 @@ class WorkflowCanvasPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant WorkflowCanvasPainter oldDelegate) {
     return oldDelegate.model != model ||
+        oldDelegate.layout.canvasSize != layout.canvasSize ||
         oldDelegate.warningNodeIds != warningNodeIds ||
         oldDelegate.isDark != isDark;
   }

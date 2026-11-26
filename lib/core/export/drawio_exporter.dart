@@ -1,7 +1,7 @@
-import 'package:xml/xml.dart';
+﻿import 'package:xml/xml.dart';
 
 import '../catalog/node_catalog.dart';
-import '../catalog/node_category.dart';
+import '../layout/auto_layout.dart';
 import '../models/workflow_model.dart';
 import '../models/workflow_node.dart';
 import 'node_name_deduplicator.dart';
@@ -15,20 +15,20 @@ class DrawioExporter {
   static const String _edgeStyle =
       'edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;';
 
-  static const int _standardWidth = 160;
-  static const int _standardHeight = 60;
-  static const int _logicWidth = 120;
-  static const int _logicHeight = 80;
-
   /// Modeli geçerli, sıkıştırılmamış `.drawio` XML metnine dönüştürür.
   ///
   /// - Yapı: `mxfile > diagram > mxGraphModel > root > mxCell`
   /// - `<root>` altında zorunlu `<mxCell id="0"/>` ve `<mxCell id="1" parent="0"/>`
   ///   kök hücreleri her zaman bulunur.
-  /// - Kategori stilleri katalogdan alınır; IF çıkış kenarları `"true"` / `"false"`
-  ///   olarak etiketlenir.
+  /// - Düğüm konum ve boyutları `node.position` yerine [LayoutResult.nodeRects]
+  ///   üzerinden okunur (tüm düğümler `140 x 60`).
+  /// - Hücre kimlikleri SDD'ye göre `n_<id>` ve `e_<sıra>` biçimindedir.
   /// - `& < > "` karakterleri `xml` paketi tarafından otomatik escape edilir.
-  String export(WorkflowModel model) {
+  String export(
+    WorkflowModel model, {
+    LayoutResult? layout,
+  }) {
+    final resolvedLayout = layout ?? const AutoLayout().compute(model);
     final uniqueNames = resolveUniqueNames(model);
     final nodeById = <String, WorkflowNode>{
       for (final node in model.nodes) node.id: node,
@@ -82,14 +82,18 @@ class DrawioExporter {
                     // Vertex (Node) hücreleri
                     for (final node in model.nodes) {
                       final template = NodeCatalog.byKey(node.templateKey);
-                      final isLogic = template?.category == NodeCategory.logic;
-                      final width = isLogic ? _logicWidth : _standardWidth;
-                      final height = isLogic ? _logicHeight : _standardHeight;
+                      final rect = resolvedLayout.nodeRects[node.id];
+                      final x = rect?.left.round() ?? 0;
+                      final y = rect?.top.round() ?? 0;
+                      final width =
+                          rect?.width.round() ?? AutoLayout.nodeWidth.round();
+                      final height =
+                          rect?.height.round() ?? AutoLayout.nodeHeight.round();
 
                       builder.element(
                         'mxCell',
                         attributes: {
-                          'id': 'node_${node.id}',
+                          'id': 'n_${node.id}',
                           'value': uniqueNames[node.id] ?? node.name,
                           'style': template?.drawioStyle ?? _defaultVertexStyle,
                           'vertex': '1',
@@ -99,8 +103,8 @@ class DrawioExporter {
                           builder.element(
                             'mxGeometry',
                             attributes: {
-                              'x': '${node.position.dx.round()}',
-                              'y': '${node.position.dy.round()}',
+                              'x': '$x',
+                              'y': '$y',
                               'width': '$width',
                               'height': '$height',
                               'as': 'geometry',
@@ -131,13 +135,13 @@ class DrawioExporter {
                       builder.element(
                         'mxCell',
                         attributes: {
-                          'id': 'edge_$i',
+                          'id': 'e_$i',
                           'value': edgeLabel,
                           'style': _edgeStyle,
                           'edge': '1',
                           'parent': '1',
-                          'source': 'node_${edge.fromId}',
-                          'target': 'node_${edge.toId}',
+                          'source': 'n_${edge.fromId}',
+                          'target': 'n_${edge.toId}',
                         },
                         nest: () {
                           builder.element(

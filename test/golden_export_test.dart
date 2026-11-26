@@ -11,39 +11,67 @@ import 'package:flowforge/core/questions/flow_engine.dart';
 import 'fixtures/answer_key_helper.dart';
 import 'fixtures/scenarios.dart';
 
-WorkflowModel _buildScenarioB() {
+WorkflowModel _buildScenario(Scenario scenario) {
   final engine = FlowEngine(gen: SequentialIdGenerator());
   var state = engine.start();
-  for (final label in scenarioIfBranch.answers) {
+  for (final label in scenario.answers) {
     final options = engine.availableOptions(state);
     state = engine.answer(state, answerKey(options, label));
   }
-  return const AutoLayout().apply(state.effectiveModel);
+  return state.effectiveModel.copyWith(name: 'FlowForge Workflow');
 }
 
-String _normalizeLineEndings(String text) =>
-    text.replaceAll('\r\n', '\n').trim();
+String _readGoldenLf(String path) {
+  final raw = File(path).readAsStringSync();
+  return raw.replaceAll('\r\n', '\n').trim();
+}
 
 void main() {
-  group('Golden Export Tests (SDD Bölüm 7 — Senaryo B)', () {
-    test('n8n JSON çıktısı golden dosya ile birebir eşleşir', () {
-      final model = _buildScenarioB();
-      final actual = _normalizeLineEndings(const N8nExporter().export(model));
-      final expected = _normalizeLineEndings(
-        File('test/goldens/scenario_b_n8n.json').readAsStringSync(),
-      );
+  const layout = AutoLayout();
+  const n8nExporter = N8nExporter();
+  const drawioExporter = DrawioExporter();
 
-      expect(actual, expected);
+  group('Golden Export Tests (Linear + IF Branch)', () {
+    test('linear n8n JSON çıktısı golden dosya ile birebir eşleşir ve \\r içermez',
+        () {
+      final model = _buildScenario(scenarioLinear);
+      final actual = n8nExporter.export(model, layout: layout.compute(model));
+      expect(actual.contains('\r'), isFalse);
+
+      final expected = _readGoldenLf('test/goldens/linear.n8n.json');
+      expect(actual.trim(), expected);
     });
 
-    test('draw.io XML çıktısı golden dosya ile birebir eşleşir', () {
-      final model = _buildScenarioB();
-      final actual = _normalizeLineEndings(const DrawioExporter().export(model));
-      final expected = _normalizeLineEndings(
-        File('test/goldens/scenario_b.drawio').readAsStringSync(),
-      );
+    test('linear draw.io XML çıktısı golden dosya ile birebir eşleşir ve \\r içermez',
+        () {
+      final model = _buildScenario(scenarioLinear);
+      final actual =
+          drawioExporter.export(model, layout: layout.compute(model));
+      expect(actual.contains('\r'), isFalse);
 
-      expect(actual, expected);
+      final expected = _readGoldenLf('test/goldens/linear.drawio');
+      expect(actual.trim(), expected);
+    });
+
+    test('if_branch n8n JSON çıktısı golden dosya ile birebir eşleşir ve \\r içermez',
+        () {
+      final model = _buildScenario(scenarioIfBranch);
+      final actual = n8nExporter.export(model, layout: layout.compute(model));
+      expect(actual.contains('\r'), isFalse);
+
+      final expected = _readGoldenLf('test/goldens/if_branch.n8n.json');
+      expect(actual.trim(), expected);
+    });
+
+    test('if_branch draw.io XML çıktısı golden dosya ile birebir eşleşir ve \\r içermez',
+        () {
+      final model = _buildScenario(scenarioIfBranch);
+      final actual =
+          drawioExporter.export(model, layout: layout.compute(model));
+      expect(actual.contains('\r'), isFalse);
+
+      final expected = _readGoldenLf('test/goldens/if_branch.drawio');
+      expect(actual.trim(), expected);
     });
   });
 }

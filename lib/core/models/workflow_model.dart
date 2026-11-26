@@ -23,7 +23,7 @@ class WorkflowModel {
   factory WorkflowModel.empty({required IdGenerator gen}) {
     return WorkflowModel(
       id: gen.next(),
-      name: 'FlowForge Workflow',
+      name: 'Yeni Workflow',
       nodes: const [],
       edges: const [],
       updatedAt: DateTime.now(),
