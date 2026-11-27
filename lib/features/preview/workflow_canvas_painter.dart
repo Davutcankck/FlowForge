@@ -39,8 +39,8 @@ class WorkflowCanvasPainter extends CustomPainter {
       final fromNode = nodeById[edge.fromId];
       if (fromRect == null || toRect == null || fromNode == null) continue;
 
-      final start = Offset(fromRect.right, fromRect.center.dy);
-      final end = Offset(toRect.left, toRect.center.dy);
+      final start = Offset(fromRect.center.dx, fromRect.bottom);
+      final end = Offset(toRect.center.dx, toRect.top);
 
       String? label;
       if (fromNode.templateKey == 'if') {
@@ -75,16 +75,16 @@ class WorkflowCanvasPainter extends CustomPainter {
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke;
 
-    final midX = (start.dx + end.dx) / 2;
+    final midY = (start.dy + end.dy) / 2;
     final path = Path()
       ..moveTo(start.dx, start.dy)
-      ..cubicTo(midX, start.dy, midX, end.dy, end.dx, end.dy);
+      ..cubicTo(start.dx, midY, end.dx, midY, end.dx, end.dy);
 
     canvas.drawPath(path, paint);
 
     const arrowLength = 10.0;
     const arrowAngle = math.pi / 6;
-    final angle = math.atan2(end.dy - start.dy, end.dx - midX);
+    final angle = math.atan2(end.dy - midY, 0.0);
     final p1 = Offset(
       end.dx - arrowLength * math.cos(angle - arrowAngle),
       end.dy - arrowLength * math.sin(angle - arrowAngle),
@@ -110,7 +110,7 @@ class WorkflowCanvasPainter extends CustomPainter {
     if (label != null) {
       final labelCenter = Offset(
         (start.dx + end.dx) / 2,
-        (start.dy + end.dy) / 2 - 10,
+        (start.dy + end.dy) / 2,
       );
       final isTrue = label == 'true';
       final pillFill = isDark

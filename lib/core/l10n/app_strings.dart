@@ -252,6 +252,14 @@ abstract final class AppStrings {
       AppLang.tr: 'Ekrana sığdır',
       AppLang.en: 'Fit to screen',
     },
+    'preview.zoomIn': {
+      AppLang.tr: 'Yakınlaştır',
+      AppLang.en: 'Zoom in',
+    },
+    'preview.zoomOut': {
+      AppLang.tr: 'Uzaklaştır',
+      AppLang.en: 'Zoom out',
+    },
     'preview.renameTooltip': {
       AppLang.tr: 'Workflow adını düzenle',
       AppLang.en: 'Rename workflow',

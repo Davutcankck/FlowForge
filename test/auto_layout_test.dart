@@ -240,5 +240,17 @@ void main() {
       expect(result.nodeRects['orphanCycleA']!.topLeft, const Offset(0, 240));
       expect(result.nodeRects['orphanCycleB']!.topLeft, const Offset(250, 240));
     });
+
+    test('computeVertical: derinlik yukarıdan aşağıya (y = derinlik * 140), IF dalları sola (-90) ve sağa (+90) ayrılır',
+        () {
+      final model = _buildScenarioModel(scenarioIfBranch);
+      final vResult = layout.computeVertical(model);
+
+      expect(vResult.nodeRects[model.nodes[0].id]!.topLeft, const Offset(0, 0));
+      expect(vResult.nodeRects[model.nodes[1].id]!.topLeft, const Offset(0, 140));
+      expect(vResult.nodeRects[model.nodes[2].id]!.topLeft, const Offset(0, 280));
+      expect(vResult.nodeRects[model.nodes[3].id]!.topLeft, const Offset(-90, 420));
+      expect(vResult.nodeRects[model.nodes[4].id]!.topLeft, const Offset(90, 420));
+    });
   });
 }

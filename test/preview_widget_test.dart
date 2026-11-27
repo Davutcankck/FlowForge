@@ -74,7 +74,7 @@ void main() {
 
         // HTTP Request node merkezini InteractiveViewer dönüşümüyle hesapla ve dokun
         final model = container.read(effectiveWorkflowProvider);
-        final layout = container.read(layoutResultProvider);
+        final layout = container.read(previewLayoutResultProvider);
         final httpNode =
             model.nodes.firstWhere((n) => n.templateKey == 'httpRequest');
         final httpCenter = layout.sceneRects[httpNode.id]!.center;
@@ -126,7 +126,7 @@ void main() {
 
         final container = await _pumpCompletedScenarioToPreview(tester);
         final model = container.read(effectiveWorkflowProvider);
-        final layout = container.read(layoutResultProvider);
+        final layout = container.read(previewLayoutResultProvider);
         final ifNode = model.nodes.firstWhere((n) => n.templateKey == 'if');
         final ifCenter = layout.sceneRects[ifNode.id]!.center;
 
@@ -196,9 +196,9 @@ void main() {
     );
 
     testWidgets(
-      'fitToScreen dar dikey ekranda ölçeği [0.3, 1.0] aralığında sığdırır, varsayılan ad Yeni Workflow ve ipucu kapatılabilir',
+      'fitToScreen, + / - yakınlaştırma butonları, varsayılan ad Yeni Workflow ve kapatılabilir ipucu çalışır',
       (tester) async {
-        tester.view.physicalSize = const Size(400, 800);
+        tester.view.physicalSize = const Size(400, 600);
         tester.view.devicePixelRatio = 1.0;
         addTearDown(() {
           tester.view.resetPhysicalSize();
@@ -214,9 +214,24 @@ void main() {
         final viewer = tester.widget<InteractiveViewer>(
           find.byKey(const Key('preview_interactive_viewer')),
         );
-        final scale = viewer.transformationController!.value.getMaxScaleOnAxis();
-        expect(scale, greaterThanOrEqualTo(0.3));
-        expect(scale, lessThan(1.0));
+        final initialScale =
+            viewer.transformationController!.value.getMaxScaleOnAxis();
+        expect(initialScale, greaterThanOrEqualTo(0.3));
+        expect(initialScale, lessThan(1.0));
+
+        // + (Yakınlaştır) butonuna basınca ölçek büyümeli
+        await tester.tap(find.byKey(const Key('preview_zoom_in_button')));
+        await tester.pumpAndSettle();
+        final zoomedInScale =
+            viewer.transformationController!.value.getMaxScaleOnAxis();
+        expect(zoomedInScale, greaterThan(initialScale));
+
+        // - (Uzaklaştır) butonuna basınca ölçek küçülmeli
+        await tester.tap(find.byKey(const Key('preview_zoom_out_button')));
+        await tester.pumpAndSettle();
+        final zoomedOutScale =
+            viewer.transformationController!.value.getMaxScaleOnAxis();
+        expect(zoomedOutScale, lessThan(zoomedInScale));
 
         // İpucu bandı başlangıçta görünür, kapatılınca gizlenir
         expect(find.byKey(const Key('preview_hint_banner')), findsOneWidget);

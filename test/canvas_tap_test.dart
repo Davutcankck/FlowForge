@@ -43,7 +43,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final model = container.read(effectiveWorkflowProvider);
-      final layout = container.read(layoutResultProvider);
+      final layout = container.read(previewLayoutResultProvider);
       final viewer = tester.widget<InteractiveViewer>(
         find.byKey(const Key('preview_interactive_viewer')),
       );

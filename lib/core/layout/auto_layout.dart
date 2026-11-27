@@ -47,6 +47,9 @@ class AutoLayout {
   static const double xSpacing = 250.0;
   static const double ySpacing = 120.0;
   static const double ifBranchOffset = 60.0;
+  static const double verticalDepthSpacing = 140.0;
+  static const double verticalSiblingSpacing = 180.0;
+  static const double verticalIfBranchOffset = 90.0;
   static const double canvasPadding = 80.0;
   static const double minCanvasWidth = 420.0;
   static const double minCanvasHeight = 320.0;
@@ -200,6 +203,58 @@ class AutoLayout {
 
     return LayoutResult(
       nodeRects: nodeRects,
+      originOffset: originOffset,
+      canvasSize: Size(canvasWidth, canvasHeight),
+    );
+  }
+
+  /// Mobil önizleme ekranı için yukarıdan aşağıya (dikey) [LayoutResult] hesaplar.
+  ///
+  /// - Derinlik yukarıdan aşağıya (`y = derinlik * 140`) ilerler.
+  /// - IF dallarında `true` kolu sola (`-90`), `false` kolu sağa (`+90`) ayrılır;
+  ///   aynı derinlikteki kardeş düğümler yatayda `180` birim aralıkla dizilir.
+  /// - Dışa aktarılan n8n JSON ve draw.io dosyaları yatay [compute] metodunu
+  ///   kullanmaya devam eder.
+  LayoutResult computeVertical(WorkflowModel model) {
+    final horizontal = compute(model);
+    if (horizontal.nodeRects.isEmpty) {
+      return horizontal;
+    }
+
+    final verticalRects = <String, Rect>{};
+    var minX = double.infinity;
+    var minY = double.infinity;
+    var maxRight = double.negativeInfinity;
+    var maxBottom = double.negativeInfinity;
+
+    for (final entry in horizontal.nodeRects.entries) {
+      final hRect = entry.value;
+      final depth = hRect.left / xSpacing;
+      // Yataydaki y (dal/sıra) ofsetini dikey görünümde x eksenine (180/120 = 1.5x) taşı
+      final vx = (hRect.top / ySpacing) * verticalSiblingSpacing;
+      final vy = depth * verticalDepthSpacing;
+
+      final vRect = Rect.fromLTWH(vx, vy, nodeWidth, nodeHeight);
+      verticalRects[entry.key] = vRect;
+
+      if (vRect.left < minX) minX = vRect.left;
+      if (vRect.top < minY) minY = vRect.top;
+      if (vRect.right > maxRight) maxRight = vRect.right;
+      if (vRect.bottom > maxBottom) maxBottom = vRect.bottom;
+    }
+
+    final originOffset = Offset(canvasPadding - minX, canvasPadding - minY);
+    final canvasWidth = math.max(
+      minCanvasWidth,
+      (maxRight - minX) + canvasPadding * 2,
+    );
+    final canvasHeight = math.max(
+      minCanvasHeight,
+      (maxBottom - minY) + canvasPadding * 2,
+    );
+
+    return LayoutResult(
+      nodeRects: verticalRects,
       originOffset: originOffset,
       canvasSize: Size(canvasWidth, canvasHeight),
     );

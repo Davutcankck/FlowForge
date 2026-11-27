@@ -11,8 +11,9 @@ import '../wizard/flow_controller.dart';
 import 'widgets/node_param_sheet.dart';
 import 'workflow_canvas_painter.dart';
 
-/// Yakınlaştırma/kaydırma, ilk açılışta `fitToScreen` ve düğüme dokunarak
-/// parametre düzenleme destekli canlı workflow önizleme ekranı (SDD 6.1, FR-05, FR-11).
+/// Yakınlaştırma/kaydırma, dikey (yukarıdan aşağıya) yerleşim, ilk açılışta
+/// `fitToScreen`, `+ / -` zoom kontrolleri ve düğüme dokunarak parametre düzenleme
+/// destekli canlı workflow önizleme ekranı (SDD 6.1, FR-05, FR-11).
 class PreviewScreen extends ConsumerStatefulWidget {
   const PreviewScreen({super.key});
 
@@ -21,6 +22,10 @@ class PreviewScreen extends ConsumerStatefulWidget {
 }
 
 class _PreviewScreenState extends ConsumerState<PreviewScreen> {
+  static const double _minScale = 0.3;
+  static const double _maxScale = 2.5;
+  static const double _zoomStepFactor = 1.25;
+
   final TransformationController _transformationController =
       TransformationController();
   Size? _lastViewportSize;
@@ -48,7 +53,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
           viewportSize.width / canvasSize.width,
           viewportSize.height / canvasSize.height,
         )
-        .clamp(0.3, 1.0);
+        .clamp(_minScale, 1.0);
 
     final dx = (viewportSize.width - canvasSize.width * scale) / 2.0;
     final dy = (viewportSize.height - canvasSize.height * scale) / 2.0;
@@ -56,6 +61,31 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
     final matrix = Matrix4.identity()
       ..translateByDouble(dx, dy, 0.0, 1.0)
       ..scaleByDouble(scale, scale, scale, 1.0);
+
+    _transformationController.value = matrix;
+  }
+
+  /// Mevcut viewport merkezi etrafında ölçeği [factor] çarpanıyla büyütür veya küçültür.
+  void _zoomBy(double factor) {
+    final currentMatrix = _transformationController.value;
+    final currentScale = currentMatrix.getMaxScaleOnAxis();
+    final targetScale =
+        (currentScale * factor).clamp(_minScale, _maxScale);
+    if ((targetScale - currentScale).abs() < 0.001) return;
+
+    final viewport = _lastViewportSize ?? const Size(400, 600);
+    final focal = Offset(viewport.width / 2.0, viewport.height / 2.0);
+    final currentTranslation = currentMatrix.getTranslation();
+
+    // Sahnedeki odak noktasını koruyarak yeni ötelemeyi hesapla
+    final sceneX = (focal.dx - currentTranslation.x) / currentScale;
+    final sceneY = (focal.dy - currentTranslation.y) / currentScale;
+    final nextDx = focal.dx - sceneX * targetScale;
+    final nextDy = focal.dy - sceneY * targetScale;
+
+    final matrix = Matrix4.identity()
+      ..translateByDouble(nextDx, nextDy, 0.0, 1.0)
+      ..scaleByDouble(targetScale, targetScale, targetScale, 1.0);
 
     _transformationController.value = matrix;
   }
@@ -95,7 +125,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
   @override
   Widget build(BuildContext context) {
     final model = ref.watch(effectiveWorkflowProvider);
-    final layout = ref.watch(layoutResultProvider);
+    final layout = ref.watch(previewLayoutResultProvider);
     final issues = ref.watch(validationIssuesProvider);
     final hintDismissed = ref.watch(previewHintDismissedProvider);
     final lang = ref.watch(appLangProvider);
@@ -105,6 +135,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
         .toSet();
     const hitTester = CanvasHitTester();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -158,7 +189,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                 if (!hintDismissed)
                   Material(
                     key: const Key('preview_hint_banner'),
-                    color: Theme.of(context).colorScheme.surfaceContainerLow,
+                    color: colorScheme.surfaceContainerLow,
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
                       child: Row(
@@ -166,7 +197,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                           Icon(
                             Icons.touch_app_outlined,
                             size: 18,
-                            color: Theme.of(context).colorScheme.primary,
+                            color: colorScheme.primary,
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -194,59 +225,145 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                     ),
                   ),
                 Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final viewportSize = constraints.biggest;
-                      if (_lastViewportSize != viewportSize ||
-                          _lastCanvasSize != layout.canvasSize) {
-                        _lastViewportSize = viewportSize;
-                        _lastCanvasSize = layout.canvasSize;
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (!mounted) return;
-                          _fitToScreen(viewportSize, layout.canvasSize);
-                        });
-                      }
+                  child: Stack(
+                    children: [
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final viewportSize = constraints.biggest;
+                          if (_lastViewportSize != viewportSize ||
+                              _lastCanvasSize != layout.canvasSize) {
+                            _lastViewportSize = viewportSize;
+                            _lastCanvasSize = layout.canvasSize;
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (!mounted) return;
+                              _fitToScreen(viewportSize, layout.canvasSize);
+                            });
+                          }
 
-                      return InteractiveViewer(
-                        key: const Key('preview_interactive_viewer'),
-                        transformationController: _transformationController,
-                        constrained: false,
-                        boundaryMargin: const EdgeInsets.all(200),
-                        minScale: 0.3,
-                        maxScale: 2.5,
-                        child: GestureDetector(
-                          key: const Key('preview_canvas_gesture'),
-                          behavior: HitTestBehavior.opaque,
-                          onTapUp: (details) {
-                            final currentScale = _transformationController.value
-                                .getMaxScaleOnAxis();
-                            final tapped = hitTester.hitTest(
-                              scenePoint: details.localPosition,
-                              nodes: model.nodes,
-                              layout: layout,
-                              scale: currentScale,
-                            );
-                            if (tapped != null) {
-                              _openNodeParamSheet(tapped, lang);
-                            }
-                          },
-                          child: SizedBox(
-                            width: layout.canvasSize.width,
-                            height: layout.canvasSize.height,
-                            child: CustomPaint(
-                              key: const Key('preview_workflow_canvas'),
-                              size: layout.canvasSize,
-                              painter: WorkflowCanvasPainter(
-                                model: model,
-                                layout: layout,
-                                warningNodeIds: warningNodeIds,
-                                isDark: isDark,
+                          return InteractiveViewer(
+                            key: const Key('preview_interactive_viewer'),
+                            transformationController: _transformationController,
+                            constrained: false,
+                            boundaryMargin: const EdgeInsets.all(200),
+                            minScale: _minScale,
+                            maxScale: _maxScale,
+                            child: GestureDetector(
+                              key: const Key('preview_canvas_gesture'),
+                              behavior: HitTestBehavior.opaque,
+                              onTapUp: (details) {
+                                final currentScale = _transformationController
+                                    .value
+                                    .getMaxScaleOnAxis();
+                                final tapped = hitTester.hitTest(
+                                  scenePoint: details.localPosition,
+                                  nodes: model.nodes,
+                                  layout: layout,
+                                  scale: currentScale,
+                                );
+                                if (tapped != null) {
+                                  _openNodeParamSheet(tapped, lang);
+                                }
+                              },
+                              child: SizedBox(
+                                width: layout.canvasSize.width,
+                                height: layout.canvasSize.height,
+                                child: CustomPaint(
+                                  key: const Key('preview_workflow_canvas'),
+                                  size: layout.canvasSize,
+                                  painter: WorkflowCanvasPainter(
+                                    model: model,
+                                    layout: layout,
+                                    warningNodeIds: warningNodeIds,
+                                    isDark: isDark,
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
+                          );
+                        },
+                      ),
+                      Positioned(
+                        right: 16,
+                        bottom: 16,
+                        child: ValueListenableBuilder<Matrix4>(
+                          valueListenable: _transformationController,
+                          builder: (context, matrix, _) {
+                            final scale = matrix.getMaxScaleOnAxis();
+                            final pct = (scale * 100).round();
+                            return Material(
+                              elevation: 2,
+                              color: colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(14),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 2,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      key: const Key('preview_zoom_out_button'),
+                                      tooltip: AppStrings.lookup(
+                                        'preview.zoomOut',
+                                        lang,
+                                      ),
+                                      visualDensity: VisualDensity.compact,
+                                      icon: const Icon(Icons.remove_rounded),
+                                      onPressed: scale > _minScale + 0.01
+                                          ? () =>
+                                              _zoomBy(1.0 / _zoomStepFactor)
+                                          : null,
+                                    ),
+                                    InkWell(
+                                      key: const Key(
+                                        'preview_zoom_percent_label',
+                                      ),
+                                      borderRadius: BorderRadius.circular(8),
+                                      onTap: () {
+                                        if (_lastViewportSize != null) {
+                                          _fitToScreen(
+                                            _lastViewportSize!,
+                                            layout.canvasSize,
+                                          );
+                                        }
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 6,
+                                        ),
+                                        child: Text(
+                                          '$pct%',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelLarge
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                        ),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      key: const Key('preview_zoom_in_button'),
+                                      tooltip: AppStrings.lookup(
+                                        'preview.zoomIn',
+                                        lang,
+                                      ),
+                                      visualDensity: VisualDensity.compact,
+                                      icon: const Icon(Icons.add_rounded),
+                                      onPressed: scale < _maxScale - 0.01
+                                          ? () => _zoomBy(_zoomStepFactor)
+                                          : null,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
+                      ),
+                    ],
                   ),
                 ),
               ],

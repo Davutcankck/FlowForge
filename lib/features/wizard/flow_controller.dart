@@ -101,10 +101,16 @@ final effectiveWorkflowProvider = Provider<WorkflowModel>((ref) {
   return state.effectiveModel;
 });
 
-/// Canlı yerleşim sonucu (`nodeRects`, `sceneRects`, `originOffset`, `canvasSize`).
+/// Canlı yerleşim sonucu — yatay (exporter'lar için: `nodeRects`, `sceneRects`).
 final layoutResultProvider = Provider<LayoutResult>((ref) {
   final model = ref.watch(effectiveWorkflowProvider);
   return const AutoLayout().compute(model);
+});
+
+/// Mobil önizleme ekranı için yukarıdan aşağıya (dikey) yerleşim sonucu.
+final previewLayoutResultProvider = Provider<LayoutResult>((ref) {
+  final model = ref.watch(effectiveWorkflowProvider);
+  return const AutoLayout().computeVertical(model);
 });
 
 /// Canlı doğrulama bulguları (SDD 5.5).

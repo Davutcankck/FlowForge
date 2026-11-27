@@ -12,7 +12,7 @@ Future<void> _pumpIfBranchPreview(
   WidgetTester tester, {
   required Brightness brightness,
 }) async {
-  tester.view.physicalSize = const Size(1200, 700);
+  tester.view.physicalSize = const Size(800, 1000);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(() {
     tester.view.resetPhysicalSize();
